@@ -375,12 +375,17 @@ impl ReportSource for FieldServiceReports {
             entry("fs_work_order_summary", "Work Orders by Status", "ServiceWorkOrder", [dates(), vec![group_param("Status")]].concat()),
             entry("fs_first_time_fix", "First-Time Fix Rate", "ServiceWorkOrder", [dates(), vec![group_param("Technician")]].concat()),
             entry("fs_sla_compliance", "Field Service SLA Compliance", "ServiceWorkOrder", [dates(), vec![group_param("Priority")]].concat()),
-            entry(
-                "fs_technician_utilization",
-                "Technician Utilization",
-                "ServiceAppointment",
-                [dates(), vec![link("territory", "Service Territory", "ServiceTerritory")]].concat(),
-            ),
+            {
+                // A technician who sees only their own appointments sees only their own row.
+                let mut e = entry(
+                    "fs_technician_utilization",
+                    "Technician Utilization",
+                    "ServiceAppointment",
+                    [dates(), vec![link("territory", "Service Territory", "ServiceTerritory")]].concat(),
+                );
+                e["scoped"] = json!("owner");
+                e
+            },
             entry("fs_parts_consumption", "Parts Consumption", "ServiceWorkOrder", [dates(), vec![param_def("company"), param_def("warehouse")]].concat()),
             entry("fs_contract_revenue", "Revenue per Contract", "ServiceContract", vec![param_def("company"), param_def("customer")]),
         ]
