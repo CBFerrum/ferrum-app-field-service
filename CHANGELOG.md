@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Declares where it keeps people's personal data, so Administration → Personal data exports and
+  erases it for a person (by email).
+
 ## 0.1.0
 
 - First release: field service on Ferrum's own customers, items, stock and books. Service requests
