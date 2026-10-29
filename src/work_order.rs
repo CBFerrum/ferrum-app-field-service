@@ -6,7 +6,7 @@
 
 use crate::logic::{self, Ts};
 use crate::setup::{Settings, coordinates, has, point};
-use crate::{appointment, child_table, dispatch, int, invoice, linked, my_technician, notify, opt_ts, require_dispatcher, stored, ts, ts_value};
+use crate::{appointment, dispatch, int, invoice, linked, my_technician, notify, opt_ts, require_dispatcher, stored, ts, ts_value};
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use ferrum_domain::util::{Company, b, company, d, elevated, get, id, money, round, rows, s, set, sys};
@@ -630,30 +630,17 @@ pub async fn refresh(k: &Kernel, ctx: &Ctx, tx: &mut Tx, wo: Uuid, exclude: Opti
         .filter_map(|r| Some((id(r, "technician")?, s(r, "technician_name").map(str::to_string), s(r, "user_email").map(str::to_string))))
         .collect();
     if stored != crew {
-        let table = child_table(ctx, "ServiceWorkOrder", "crew")?;
-        sqlx::query(sqlx::AssertSqlSafe(format!("delete from {table} where tenant_id = $1 and parent_id = $2")))
-            .bind(ctx.tenant)
-            .bind(wo)
-            .execute(&mut **tx)
-            .await?;
-        let ids: Vec<Uuid> = crew.iter().map(|_| Uuid::now_v7()).collect();
-        let idx: Vec<i32> = (0..crew.len() as i32).collect();
-        let techs: Vec<Uuid> = crew.iter().map(|c| c.0).collect();
-        let names: Vec<Option<String>> = crew.iter().map(|c| c.1.clone()).collect();
-        let emails: Vec<Option<String>> = crew.iter().map(|c| c.2.clone()).collect();
-        sqlx::query(sqlx::AssertSqlSafe(format!(
-            "insert into {table} (tenant_id, id, parent_id, idx, technician, technician_name, user_email) \
-             select $1, x.id, $2, x.idx, x.t, x.n, x.e from unnest($3::uuid[], $4::int[], $5::uuid[], $6::text[], $7::text[]) as x(id, idx, t, n, e)"
-        )))
-        .bind(ctx.tenant)
-        .bind(wo)
-        .bind(&ids)
-        .bind(&idx)
-        .bind(&techs)
-        .bind(&names)
-        .bind(&emails)
-        .execute(&mut **tx)
-        .await?;
+        let rows = crew
+            .iter()
+            .map(|(t, name, email)| {
+                Doc::from_iter([
+                    ("technician".to_string(), json!(t.to_string())),
+                    ("technician_name".to_string(), json!(name)),
+                    ("user_email".to_string(), json!(email)),
+                ])
+            })
+            .collect();
+        k.set_child_rows_tx(&sctx, tx, "ServiceWorkOrder", "crew", wo, rows).await?;
     }
 
     let rank = |st: &str| appointment::ACTIVE.iter().position(|a| *a == st);
