@@ -1,0 +1,79 @@
+package: field_service
+version: 0.1.0
+label: Field Service
+description: "Field service: service requests, work orders, technician scheduling and dispatch, parts and time, checklists, signatures and invoicing"
+depends: [core, selling, inventory, accounting]
+
+modules:
+  - name: field_service
+    label: Field Service
+    icon: truck
+    order: 46
+    items: [ServiceWorkOrder, ServiceAppointment, ServiceRequest, ServiceContract, CustomerEquipment, Technician, ServiceTerritory, ServiceSkill,
+            ServiceChecklistTemplate, FieldServiceSettings, report:fs_work_order_summary, report:fs_first_time_fix, report:fs_sla_compliance,
+            report:fs_technician_utilization, report:fs_parts_consumption, report:fs_contract_revenue]
+
+roles:
+  - name: Service Manager
+    description: Runs field service — settings, technicians and their costs, contracts, requests, work orders, appointments — and invoices completed work.
+    permissions:
+      - {entity: FieldServiceSettings, read: true, write: true, create: true}
+      - {entity: ServiceTerritory, read: true, write: true, create: true, delete: true}
+      - {entity: ServiceSkill, read: true, write: true, create: true, delete: true}
+      - {entity: Technician, read: true, write: true, create: true, delete: true, export: true, import: true, read_groups: [costing], write_groups: [costing]}
+      - {entity: ServiceChecklistTemplate, read: true, write: true, create: true, delete: true}
+      - {entity: CustomerEquipment, read: true, write: true, create: true, delete: true, export: true, import: true}
+      - {entity: ServiceRequest, read: true, write: true, create: true, delete: true, export: true}
+      - {entity: ServiceWorkOrder, read: true, write: true, create: true, delete: true, submit: true, cancel: true, export: true, read_groups: [planning, costing], write_groups: [planning, costing]}
+      - {entity: ServiceWorkOrderPart, read_groups: [costing], write_groups: [costing]}
+      - {entity: ServiceWorkOrderLabour, read_groups: [costing], write_groups: [costing]}
+      - {entity: ServiceAppointment, read: true, write: true, create: true, delete: true, export: true}
+      - {entity: ServiceContract, read: true, write: true, create: true, delete: true, submit: true, cancel: true, export: true}
+      - {entity: SalesInvoice, read: true, write: true, create: true, delete: true}
+      - {entity: StockEntry, read: true}
+      - {entity: Customer, read: true}
+      - {entity: Item, read: true}
+      - {entity: Warehouse, read: true}
+      - {entity: Company, read: true}
+      - {entity: Currency, read: true}
+      - {entity: Uom, read: true}
+      - {entity: PriceList, read: true}
+      - {entity: ItemPrice, read: true}
+      - {entity: TaxTemplate, read: true}
+      - {entity: Account, read: true}
+      - {entity: CostCenter, read: true}
+  - name: Dispatcher
+    description: Takes service requests, plans, schedules and dispatches work orders, and keeps the installed base up to date.
+    permissions:
+      - {entity: FieldServiceSettings, read: true}
+      - {entity: ServiceTerritory, read: true}
+      - {entity: ServiceSkill, read: true}
+      - {entity: Technician, read: true}
+      - {entity: ServiceChecklistTemplate, read: true}
+      - {entity: CustomerEquipment, read: true, write: true, create: true, export: true}
+      - {entity: ServiceRequest, read: true, write: true, create: true, delete: true, export: true}
+      - {entity: ServiceWorkOrder, read: true, write: true, create: true, delete: true, submit: true, export: true, read_groups: [planning], write_groups: [planning]}
+      - {entity: ServiceAppointment, read: true, write: true, create: true, delete: true, export: true}
+      - {entity: ServiceContract, read: true}
+      - {entity: Customer, read: true}
+      - {entity: Item, read: true}
+      - {entity: Warehouse, read: true}
+      - {entity: Company, read: true}
+      - {entity: Uom, read: true}
+  - name: Technician
+    description: Works the work orders and appointments assigned to them — travel, arrival, checklist, parts, time, expenses, signature, completion — and files service requests.
+    permissions:
+      - {entity: ServiceWorkOrder, read: true, write: true, submit: true, if_owner: true, read_groups: [planning]}
+      - {entity: ServiceAppointment, read: true, if_owner: true}
+      - {entity: ServiceRequest, read: true, create: true, if_owner: true}
+      - {entity: Technician, read: true}
+      - {entity: CustomerEquipment, read: true}
+      - {entity: ServiceChecklistTemplate, read: true}
+      - {entity: ServiceSkill, read: true}
+      - {entity: ServiceTerritory, read: true}
+      - {entity: FieldServiceSettings, read: true}
+      - {entity: Customer, read: true}
+      - {entity: Item, read: true}
+      - {entity: Warehouse, read: true}
+      - {entity: Company, read: true}
+      - {entity: Uom, read: true}

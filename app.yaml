@@ -1,0 +1,14 @@
+id: field-service
+name: Field Service
+version: 0.1.0
+publisher: cbferrum
+summary: "Field service: service requests, work orders, technician scheduling and dispatch, parts and time, checklists, signatures and invoicing"
+description: README.md
+categories: [support, inventory]
+license: AGPL-3.0-only
+homepage: https://github.com/CBFerrum/ferrum-app-field-service
+support: https://github.com/CBFerrum/ferrum-app-field-service/issues
+runtime: native
+platform: ">=0.3, <0.4"
+packages: [field_service]
+uninstall: ask

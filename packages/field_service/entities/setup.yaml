@@ -1,0 +1,155 @@
+- name: ServiceSlaTarget
+  label: SLA Target
+  kind: child
+  fields:
+    - {name: priority, type: select, options: [Low, Medium, High, Urgent], required: true, in_list: true}
+    - {name: response_hours, type: decimal, label: Response Time (Hours), required: true, min: "0.01", max: "87600", in_list: true, description: "From the report until the technician is on site"}
+    - {name: resolution_hours, type: decimal, label: Resolution Time (Hours), required: true, min: "0.01", max: "87600", in_list: true, description: "From the report until the work order is completed"}
+  rules:
+    - {name: resolution_after_response, check: "doc.resolution_hours >= doc.response_hours", message: "The resolution time cannot be shorter than the response time"}
+
+- name: ServiceWorkingHour
+  label: Working Hours
+  kind: child
+  fields:
+    - {name: weekday, type: select, options: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday], required: true, in_list: true}
+    - {name: start_time, type: data, required: true, max_length: 5, in_list: true, description: "HH:MM, 24-hour clock, local time"}
+    - {name: end_time, type: data, required: true, max_length: 5, in_list: true, description: "HH:MM; 24:00 = midnight. A night shift is one row per day, e.g. Monday 22:00-24:00 and Tuesday 00:00-06:00"}
+
+- name: FieldServiceSettings
+  label: Field Service Settings
+  kind: settings
+  module: field_service
+  fields:
+    - {name: labour_item, type: link, to: Item, link_filters: {is_stock_item: false}, description: "Service item invoiced for labour (hours × the technician's bill rate)"}
+    - {name: expense_item, type: link, to: Item, link_filters: {is_stock_item: false}, description: "Service item invoiced for billable expenses"}
+    - {name: labour_increment_minutes, type: int, label: Bill Labour In Steps Of (Minutes), default: 1, min: 1, max: 240, description: "Labour time is rounded up to this step, e.g. 15 bills every started quarter hour"}
+    - {name: travel_speed_kmh, type: decimal, label: Travel Speed (km/h), default: "40", min: "1", max: "300", description: "Average speed for travel estimates over the straight-line distance; lower it to allow for roads and traffic"}
+    - {name: default_duration_minutes, type: int, label: Default Job Duration (Minutes), default: 60, min: 5, max: 1440}
+    - {name: default_warehouse, type: link, to: Warehouse, link_filters: {is_group: false}, description: "Parts are taken from here when the technician has no van warehouse"}
+    - {name: require_checklist, type: check, label: Require Checklist, default: true, description: "Required checklist items must be done before a work order is completed"}
+    - {name: require_signature, type: check, label: Require Customer Signature, default: true, description: "A work order needs the customer's signature and name to be completed"}
+    - {name: auto_invoice, type: check, label: Invoice On Completion, description: "Create the draft sales invoice as soon as a work order is completed"}
+    - {name: notify_customer, type: check, label: Email Customers, default: true, description: "With the Mail app installed, customers get the visit window, an on-the-way notice and a tracking link"}
+    - {name: public_requests, type: check, label: Accept Public Service Requests, description: "Customers may file service requests on the public endpoint without signing in"}
+    - {name: tracking_link_days, type: int, label: Tracking Links Valid (Days), default: 30, min: 1, max: 365}
+    - {name: sla_targets, type: table, of: ServiceSlaTarget, label: SLA Targets By Priority, description: "Service contracts with their own response and resolution times override these"}
+    - {name: default_working_hours, type: table, of: ServiceWorkingHour, description: "For technicians without their own working hours; empty = round the clock"}
+  form:
+    - {label: Invoicing, fields: [labour_item, expense_item, labour_increment_minutes, auto_invoice]}
+    - {label: Scheduling, fields: [travel_speed_kmh, default_duration_minutes, default_warehouse, default_working_hours]}
+    - {label: Completion, fields: [require_checklist, require_signature]}
+    - {label: Service Levels, fields: [sla_targets]}
+    - {label: Customers, fields: [notify_customer, public_requests, tracking_link_days]}
+
+- name: ServiceTerritory
+  label: Service Territory
+  label_plural: Service Territories
+  kind: master
+  module: field_service
+  title_field: territory_name
+  fields:
+    - {name: territory_name, type: data, required: true, unique: true, in_list: true}
+    - {name: description, type: text}
+  list: {columns: [territory_name], sort: territory_name asc}
+
+- name: ServiceSkill
+  label: Service Skill
+  kind: master
+  module: field_service
+  title_field: skill_name
+  fields:
+    - {name: skill_name, type: data, required: true, unique: true, in_list: true}
+    - {name: description, type: text}
+  list: {columns: [skill_name], sort: skill_name asc}
+
+- name: TechnicianSkill
+  label: Technician Skill
+  kind: child
+  fields:
+    - {name: skill, type: link, to: ServiceSkill, required: true, in_list: true}
+    - {name: level, type: select, options: [Basic, Skilled, Expert], default: Skilled, in_list: true}
+
+- name: Technician
+  label: Technician
+  kind: master
+  module: field_service
+  title_field: technician_name
+  search_fields: [user_email]
+  description: "A field engineer. Technicians sign in with their user email and see their own work orders and appointments."
+  fields:
+    - {name: technician_name, type: data, required: true, in_list: true}
+    - {name: user_email, type: email, unique: true, in_list: true, description: "Email address the technician signs in with"}
+    - {name: active, type: check, default: true, in_list: true, in_filter: true, description: "Inactive technicians keep their history but cannot be scheduled"}
+    - {name: phone, type: phone}
+    - {name: territory, type: link, to: ServiceTerritory, in_list: true, in_filter: true}
+    - {name: skills, type: table, of: TechnicianSkill}
+    - {name: bill_rate, type: currency, label: Bill Rate (per Hour), min: "0", description: "Charged to customers per labour hour (company currency)"}
+    - {name: hourly_cost, type: currency, label: Cost (per Hour), min: "0", perm_group: costing}
+    - {name: time_zone, type: data, max_length: 64, description: "IANA time zone of the working hours, e.g. Europe/London; empty = the workspace's"}
+    - {name: working_hours, type: table, of: ServiceWorkingHour, description: "Empty = the default working hours of Field Service Settings"}
+    - {name: home_latitude, type: decimal, min: "-90", max: "90", description: "Where the technician's day starts, for travel estimates"}
+    - {name: home_longitude, type: decimal, min: "-180", max: "180"}
+    - {name: van_warehouse, type: link, to: Warehouse, link_filters: {is_group: false}, description: "Parts the technician uses are taken from here"}
+    - {name: notes, type: text}
+  form:
+    - {label: Technician, fields: [technician_name, user_email, active, phone, territory]}
+    - {label: Skills, fields: [skills]}
+    - {label: Rates, fields: [bill_rate, hourly_cost]}
+    - {label: Availability, fields: [time_zone, working_hours, home_latitude, home_longitude, van_warehouse]}
+    - {label: Notes, collapsible: true, fields: [notes]}
+  list: {columns: [technician_name, territory, user_email, active], sort: technician_name asc}
+
+- name: ServiceChecklistTemplateItem
+  label: Checklist Template Item
+  kind: child
+  fields:
+    - {name: task, type: data, required: true, max_length: 300, in_list: true}
+    - {name: required, type: check, default: true, in_list: true}
+
+- name: ServiceChecklistTemplate
+  label: Checklist Template
+  kind: master
+  module: field_service
+  title_field: template_name
+  fields:
+    - {name: template_name, type: data, required: true, unique: true, in_list: true}
+    - {name: description, type: text}
+    - {name: items, type: table, of: ServiceChecklistTemplateItem, label: Tasks, required: true}
+  list: {columns: [template_name], sort: template_name asc}
+
+- name: CustomerEquipment
+  label: Customer Equipment
+  label_plural: Customer Equipment
+  kind: master
+  module: field_service
+  title_field: equipment_name
+  numbering: {template: "EQ-{seq:6}"}
+  search_fields: [serial_no, equipment_name]
+  description: "The installed base: what each customer has, where it is and how long its warranty runs."
+  fields:
+    - {name: customer, type: link, to: Customer, required: true, in_filter: true}
+    - {name: customer_name, type: data, fetch_from: customer.customer_name, read_only: true, in_list: true}
+    - {name: item, type: link, to: Item, required: true, in_filter: true}
+    - {name: item_name, type: data, fetch_from: item.item_name, read_only: true}
+    - {name: serial_no, type: data, label: Serial No, max_length: 140, in_list: true}
+    - {name: equipment_name, type: data, read_only: true, in_list: true, description: "Item name and serial number"}
+    - {name: status, type: select, options: [Active, Inactive, Decommissioned], required: true, default: Active, in_list: true, in_filter: true}
+    - {name: install_date, type: date}
+    - {name: warranty_end, type: date, label: Warranty Until, in_list: true}
+    - {name: warranty_covers_labour, type: check, default: true, description: "Labour on work orders reported within the warranty is free too (parts always are)"}
+    - {name: site_address, type: text}
+    - {name: latitude, type: decimal, min: "-90", max: "90"}
+    - {name: longitude, type: decimal, min: "-180", max: "180"}
+    - {name: territory, type: link, to: ServiceTerritory, in_filter: true}
+    - {name: last_service_date, type: date, read_only: true, no_copy: true}
+    - {name: notes, type: text}
+  unique: [[item, serial_no]]
+  rules:
+    - {name: warranty_after_install, check: "doc.warranty_end == null || doc.install_date == null || doc.warranty_end >= doc.install_date", message: "The warranty cannot end before the installation"}
+  form:
+    - {label: Equipment, fields: [customer, customer_name, item, item_name, serial_no, status, install_date]}
+    - {label: Warranty, fields: [warranty_end, warranty_covers_labour]}
+    - {label: Site, fields: [site_address, latitude, longitude, territory]}
+    - {label: Service, fields: [last_service_date, notes]}
+  list: {columns: [number, equipment_name, customer_name, warranty_end, status], sort: created_at desc}
