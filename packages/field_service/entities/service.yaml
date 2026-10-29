@@ -1,0 +1,285 @@
+- name: ServiceRequest
+  label: Service Request
+  kind: document
+  module: field_service
+  title_field: subject
+  numbering: {template: "FSR-{YYYY}-{seq:5}", date_field: requested_at}
+  search_fields: [contact_email, contact_name, customer_name]
+  description: "A request for service from a customer (public endpoint), the helpdesk or staff; it becomes a work order."
+  fields:
+    - {name: subject, type: data, required: true, max_length: 300, in_list: true}
+    - {name: description, type: text, max_length: 20000}
+    - {name: status, type: select, options: [Open, Converted, Rejected], default: Open, read_only: true, in_list: true, in_filter: true}
+    - {name: source, type: select, options: [Staff, Phone, Email, Helpdesk, Customer Portal], required: true, default: Staff, in_filter: true}
+    - {name: requested_at, type: datetime, required: true, default_expr: now, in_list: true, in_filter: true, description: "When the customer asked; the work order's SLA counts from here"}
+    - {name: customer, type: link, to: Customer, in_filter: true}
+    - {name: customer_name, type: data, fetch_from: customer.customer_name, read_only: true, in_list: true}
+    - {name: contact_name, type: data, max_length: 140}
+    - {name: contact_email, type: email}
+    - {name: contact_phone, type: phone}
+    - {name: equipment, type: link, to: CustomerEquipment}
+    - {name: site_address, type: text, max_length: 2000}
+    - {name: latitude, type: decimal, min: "-90", max: "90"}
+    - {name: longitude, type: decimal, min: "-180", max: "180"}
+    - {name: territory, type: link, to: ServiceTerritory, in_filter: true}
+    - {name: work_type, type: select, options: [Repair, Installation, Maintenance, Inspection], required: true, default: Repair, in_filter: true}
+    - {name: priority, type: select, options: [Low, Medium, High, Urgent], required: true, default: Medium, in_list: true, in_filter: true}
+    - {name: preferred_start, type: datetime, label: Preferred Visit Time}
+    - {name: helpdesk_ticket, type: data, max_length: 64, description: "Id or number of the helpdesk ticket this request comes from; with the Helpdesk app installed the ticket's customer, contact, subject, description and serial number are copied"}
+    - {name: work_order, type: link, to: ServiceWorkOrder, read_only: true, no_copy: true, in_list: true, on_delete: set_null}
+    - {name: rejection_reason, type: text, read_only: true, no_copy: true}
+    - {name: source_ip, type: data, read_only: true, hidden: true, no_copy: true}
+  form:
+    - {label: Request, fields: [subject, description, status, source, requested_at, priority, work_type, preferred_start]}
+    - {label: Customer, fields: [customer, customer_name, contact_name, contact_email, contact_phone]}
+    - {label: Site, fields: [equipment, site_address, latitude, longitude, territory]}
+    - {label: Outcome, fields: [work_order, rejection_reason, helpdesk_ticket]}
+  actions:
+    - {name: make_work_order, label: Create Work Order, permission: read, condition: "doc.status == 'Open'"}
+    - {name: reject, label: Reject, permission: write, condition: "doc.status == 'Open'"}
+    - {name: tracking_link, label: Customer Tracking Link, permission: read}
+  list: {columns: [number, subject, customer_name, priority, status], sort: requested_at desc}
+
+- name: ServiceWorkOrderSkill
+  label: Required Skill
+  kind: child
+  fields:
+    - {name: skill, type: link, to: ServiceSkill, required: true, in_list: true}
+
+- name: ServiceWorkOrderCrew
+  label: Assigned Technician
+  kind: child
+  fields:
+    - {name: technician, type: link, to: Technician, read_only: true, in_list: true}
+    - {name: technician_name, type: data, read_only: true, in_list: true}
+    - {name: user_email, type: email, read_only: true, in_list: true}
+
+- name: ServiceWorkOrderChecklist
+  label: Checklist Item
+  kind: child
+  fields:
+    - {name: task, type: data, required: true, max_length: 300, in_list: true}
+    - {name: required, type: check, in_list: true}
+    - {name: done, type: check, in_list: true, no_copy: true}
+    - {name: done_by, type: email, read_only: true, in_list: true, no_copy: true}
+    - {name: done_at, type: datetime, read_only: true, no_copy: true}
+    - {name: notes, type: text, max_length: 2000}
+
+- name: ServiceWorkOrderPart
+  label: Part
+  kind: child
+  fields:
+    - {name: item, type: link, to: Item, required: true, in_list: true}
+    - {name: item_name, type: data, fetch_from: item.item_name, read_only: true, in_list: true}
+    - {name: uom, type: link, to: Uom, fetch_from: item.stock_uom, read_only: true}
+    - {name: qty, type: decimal, required: true, min: "0.000000001", max: "1000000", in_list: true}
+    - {name: warehouse, type: link, to: Warehouse, link_filters: {is_group: false}, in_list: true, description: "Empty = the technician's van, else the default warehouse of Field Service Settings"}
+    - {name: serial_no, type: text, max_length: 20000, description: One serial number per line}
+    - {name: batch_no, type: data, max_length: 140}
+    - {name: warranty, type: check, in_list: true, description: "Replaced under warranty: invoiced at no charge"}
+    - {name: cost, type: currency, read_only: true, no_copy: true, perm_group: costing, description: "Stock value issued on completion"}
+
+- name: ServiceWorkOrderLabour
+  label: Labour
+  kind: child
+  fields:
+    - {name: technician, type: link, to: Technician, in_list: true, description: "Empty = you"}
+    - {name: technician_name, type: data, fetch_from: technician.technician_name, read_only: true, in_list: true}
+    - {name: from_time, type: datetime, required: true, in_list: true}
+    - {name: to_time, type: datetime, required: true, in_list: true}
+    - {name: hours, type: decimal, read_only: true, in_list: true, description: "Rounded up to the billing step of Field Service Settings"}
+    - {name: billable, type: check, default: true, in_list: true}
+    - {name: bill_rate, type: currency, read_only: true, no_copy: true}
+    - {name: cost_rate, type: currency, read_only: true, no_copy: true, perm_group: costing}
+    - {name: notes, type: data, max_length: 300}
+  rules:
+    - {name: ends_after_start, check: "doc.from_time == null || doc.to_time == null || doc.to_time > doc.from_time", message: "Labour must end after it starts"}
+
+- name: ServiceWorkOrderExpense
+  label: Expense
+  kind: child
+  fields:
+    - {name: expense_type, type: select, options: [Travel, Mileage, Parking, Tolls, Lodging, Meals, Materials, Other], required: true, default: Other, in_list: true}
+    - {name: description, type: data, max_length: 300, in_list: true}
+    - {name: amount, type: currency, required: true, min: "0.01", in_list: true}
+    - {name: billable, type: check, default: true, in_list: true}
+
+- name: ServiceWorkOrder
+  label: Service Work Order
+  kind: document
+  module: field_service
+  submittable: true
+  company_scoped: true
+  title_field: customer_name
+  numbering: {template: "FSWO-{YYYY}-{seq:5}", date_field: reported_at}
+  search_fields: [serial_no, contact_name]
+  owner_fields: [crew.user_email]
+  description: "A job at a customer's site. Completing it (submit) consumes its parts from stock and freezes it; it is then invoiced once."
+  fields:
+    - {name: company, type: link, to: Company, required: true, default_expr: "user.default_company", in_filter: true, perm_group: planning}
+    - {name: customer, type: link, to: Customer, required: true, in_filter: true, perm_group: planning}
+    - {name: customer_name, type: data, fetch_from: customer.customer_name, read_only: true, in_list: true}
+    - {name: contact_name, type: data, max_length: 140}
+    - {name: contact_email, type: email}
+    - {name: contact_phone, type: phone}
+    - {name: equipment, type: link, to: CustomerEquipment, in_filter: true, perm_group: planning}
+    - {name: item, type: link, to: Item, fetch_from: equipment.item, read_only: true}
+    - {name: serial_no, type: data, label: Serial No, fetch_from: equipment.serial_no, read_only: true}
+    - {name: site_address, type: text, max_length: 2000, perm_group: planning, description: "Empty = the equipment's site"}
+    - {name: latitude, type: decimal, min: "-90", max: "90", perm_group: planning}
+    - {name: longitude, type: decimal, min: "-180", max: "180", perm_group: planning}
+    - {name: territory, type: link, to: ServiceTerritory, in_filter: true, perm_group: planning}
+    - {name: work_type, type: select, options: [Repair, Installation, Maintenance, Inspection], required: true, default: Repair, in_list: true, in_filter: true, perm_group: planning}
+    - {name: priority, type: select, options: [Low, Medium, High, Urgent], required: true, default: Medium, in_list: true, in_filter: true, perm_group: planning}
+    - {name: description, type: text, max_length: 20000, perm_group: planning}
+    - {name: reported_at, type: datetime, required: true, default_expr: now, in_filter: true, perm_group: planning, description: "When the problem was reported; the SLA counts from here"}
+    - {name: preferred_start, type: datetime, label: Preferred Visit Time, perm_group: planning}
+    - {name: estimated_duration_minutes, type: int, label: Estimated Duration (Minutes), min: 5, max: 1440, perm_group: planning}
+    - {name: required_skills, type: table, of: ServiceWorkOrderSkill, perm_group: planning}
+    - {name: checklist_template, type: link, to: ServiceChecklistTemplate, perm_group: planning, description: "Choosing a template replaces the checklist with its tasks"}
+    - {name: service_request, type: link, to: ServiceRequest, read_only: true, no_copy: true, on_delete: set_null}
+    - {name: service_contract, type: link, to: ServiceContract, read_only: true, in_filter: true, description: "The contract covering this job (found from the customer and equipment, or the plan that created it)"}
+    - {name: contract_due_date, type: date, read_only: true, no_copy: true, description: "The planned visit of the contract this work order carries out"}
+    - {name: status, type: select, options: [New, Scheduled, Dispatched, En Route, On Site, Completed, Invoiced, Cancelled], default: New, read_only: true, no_copy: true, in_list: true, in_filter: true, index: true}
+    - {name: crew, type: table, of: ServiceWorkOrderCrew, label: Technicians, read_only: true, no_copy: true}
+    - {name: current_appointment, type: link, to: ServiceAppointment, read_only: true, no_copy: true, on_delete: set_null}
+    - {name: scheduled_start, type: datetime, read_only: true, no_copy: true, in_list: true}
+    - {name: scheduled_end, type: datetime, read_only: true, no_copy: true}
+    - {name: travel_started_at, type: datetime, read_only: true, no_copy: true}
+    - {name: arrived_at, type: datetime, read_only: true, no_copy: true, description: "First arrival on site (meets the response target)"}
+    - {name: completed_at, type: datetime, read_only: true, no_copy: true, in_filter: true}
+    - {name: cancelled_at, type: datetime, read_only: true, no_copy: true}
+    - {name: cancellation_reason, type: text, read_only: true, no_copy: true}
+    - {name: visits, type: int, read_only: true, no_copy: true, description: "Visits on site until completion"}
+    - {name: first_time_fix, type: check, read_only: true, no_copy: true, in_filter: true}
+    - {name: sla_start, type: datetime, label: SLA Clock Start, read_only: true, no_copy: true}
+    - {name: response_hours, type: decimal, read_only: true, no_copy: true}
+    - {name: resolution_hours, type: decimal, read_only: true, no_copy: true}
+    - {name: response_due, type: datetime, read_only: true, no_copy: true}
+    - {name: resolution_due, type: datetime, read_only: true, no_copy: true}
+    - {name: response_breached, type: check, read_only: true, no_copy: true, in_filter: true}
+    - {name: resolution_breached, type: check, read_only: true, no_copy: true, in_filter: true}
+    - {name: sla_status, type: select, label: SLA Status, options: [On Track, At Risk, Breached, Met], read_only: true, no_copy: true, in_list: true, in_filter: true}
+    - {name: under_warranty, type: check, read_only: true, no_copy: true, in_filter: true}
+    - {name: parts_covered, type: check, read_only: true, no_copy: true, description: "Parts are free: warranty or contract"}
+    - {name: labour_covered, type: check, read_only: true, no_copy: true, description: "Labour is free: warranty or contract"}
+    - {name: checklist, type: table, of: ServiceWorkOrderChecklist}
+    - {name: parts, type: table, of: ServiceWorkOrderPart}
+    - {name: labour, type: table, of: ServiceWorkOrderLabour, no_copy: true, description: "Time is recorded again on a redo (amended) work order"}
+    - {name: expenses, type: table, of: ServiceWorkOrderExpense}
+    - {name: work_notes, type: text, max_length: 20000}
+    - {name: customer_signature, type: attach, no_copy: true, description: "Image of the customer's signature (upload with /api/files)"}
+    - {name: signed_by, type: data, max_length: 140, label: Signed By, no_copy: true}
+    - {name: signed_at, type: datetime, read_only: true, no_copy: true}
+    - {name: labour_hours, type: decimal, read_only: true, no_copy: true}
+    - {name: billable_hours, type: decimal, read_only: true, no_copy: true}
+    - {name: labour_cost, type: currency, read_only: true, no_copy: true, perm_group: costing}
+    - {name: parts_cost, type: currency, read_only: true, no_copy: true, perm_group: costing}
+    - {name: expense_total, type: currency, read_only: true, no_copy: true}
+    - {name: stock_entry, type: link, to: StockEntry, read_only: true, no_copy: true}
+    - {name: sales_invoice, type: link, to: SalesInvoice, read_only: true, no_copy: true, on_delete: set_null}
+  form:
+    - {label: Job, fields: [company, customer, customer_name, work_type, priority, description, reported_at, status]}
+    - {label: Contact, collapsible: true, fields: [contact_name, contact_email, contact_phone]}
+    - {label: Site, fields: [equipment, item, serial_no, site_address, latitude, longitude, territory]}
+    - {label: Planning, fields: [preferred_start, estimated_duration_minutes, required_skills, checklist_template]}
+    - {label: Schedule, fields: [crew, current_appointment, scheduled_start, scheduled_end, travel_started_at, arrived_at, completed_at, visits, first_time_fix]}
+    - {label: Checklist, fields: [checklist]}
+    - {label: Parts, fields: [parts]}
+    - {label: Labour, fields: [labour]}
+    - {label: Expenses, fields: [expenses]}
+    - {label: Sign-off, fields: [work_notes, customer_signature, signed_by, signed_at]}
+    - {label: Service Level, collapsible: true, fields: [sla_status, sla_start, response_hours, resolution_hours, response_due, resolution_due, response_breached, resolution_breached]}
+    - {label: Coverage and Billing, collapsible: true, fields: [service_contract, contract_due_date, under_warranty, parts_covered, labour_covered, labour_hours, billable_hours, labour_cost, parts_cost, expense_total, stock_entry, sales_invoice]}
+    - {label: Origin, collapsible: true, fields: [service_request, cancelled_at, cancellation_reason]}
+  unique: [[service_contract, contract_due_date]]
+  actions:
+    - {name: suggest_technicians, label: Suggest Technicians, docstatus: [0], permission: read, condition: "doc.status != 'Cancelled'"}
+    - {name: schedule, label: Schedule, docstatus: [0], permission: write, condition: "doc.status != 'Cancelled'"}
+    - {name: dispatch, label: Dispatch, docstatus: [0], permission: write, condition: "doc.status == 'Scheduled'"}
+    - {name: start_travel, label: Start Travel, docstatus: [0], permission: write, condition: "doc.status == 'Dispatched'"}
+    - {name: arrive, label: Arrive On Site, docstatus: [0], permission: write, condition: "doc.status == 'Dispatched' || doc.status == 'En Route'"}
+    - {name: complete, label: Complete, docstatus: [0], permission: submit, condition: "doc.status == 'On Site'"}
+    - {name: cancel_work_order, label: Cancel Work Order, docstatus: [0], permission: write, condition: "doc.status != 'Cancelled'", confirm: "Cancel this work order and its open appointments?"}
+    - {name: create_invoice, label: Create Sales Invoice, docstatus: [1], permission: read, condition: "doc.status == 'Completed'"}
+  list: {columns: [number, customer_name, work_type, priority, status, scheduled_start, sla_status], sort: reported_at desc}
+
+- name: ServiceAppointmentTechnician
+  label: Appointment Technician
+  kind: child
+  fields:
+    - {name: technician, type: link, to: Technician, required: true, in_list: true}
+    - {name: technician_name, type: data, fetch_from: technician.technician_name, read_only: true, in_list: true}
+    - {name: user_email, type: email, fetch_from: technician.user_email, read_only: true}
+    - {name: slot_start, type: datetime, read_only: true, hidden: true}
+    - {name: slot_end, type: datetime, read_only: true, hidden: true}
+    - {name: busy, type: check, read_only: true, hidden: true, description: "Reserves the technician's time while the appointment is active"}
+
+- name: ServiceAppointment
+  label: Service Appointment
+  kind: document
+  module: field_service
+  title_field: customer_name
+  numbering: {template: "FSA-{YYYY}-{seq:6}", date_field: scheduled_start}
+  owner_fields: [technicians.user_email]
+  description: "A visit of one or more technicians for a work order. Active appointments reserve the technicians' time: a technician can never be booked twice for the same minute."
+  fields:
+    - {name: work_order, type: link, to: ServiceWorkOrder, required: true, in_list: true, in_filter: true}
+    - {name: customer_name, type: data, fetch_from: work_order.customer_name, read_only: true, in_list: true}
+    - {name: status, type: select, options: [Scheduled, Dispatched, En Route, On Site, Completed, Cannot Complete, Cancelled], default: Scheduled, read_only: true, no_copy: true, in_list: true, in_filter: true}
+    - {name: scheduled_start, type: datetime, required: true, in_list: true, in_filter: true}
+    - {name: scheduled_end, type: datetime, required: true, in_list: true}
+    - {name: technicians, type: table, of: ServiceAppointmentTechnician, required: true}
+    - {name: travel_started_at, type: datetime, read_only: true, no_copy: true}
+    - {name: actual_start, type: datetime, read_only: true, no_copy: true}
+    - {name: actual_end, type: datetime, read_only: true, no_copy: true}
+    - {name: notes, type: text, max_length: 5000}
+  rules:
+    - {name: ends_after_start, check: "doc.scheduled_start == null || doc.scheduled_end == null || doc.scheduled_end > doc.scheduled_start", message: "The appointment must end after it starts"}
+  actions:
+    - {name: cancel_appointment, label: Cancel Appointment, permission: write, condition: "doc.status == 'Scheduled' || doc.status == 'Dispatched' || doc.status == 'En Route'", confirm: "Cancel this appointment and free the technicians' time?"}
+  list: {columns: [number, customer_name, scheduled_start, scheduled_end, status], sort: scheduled_start desc}
+
+- name: ServiceContract
+  label: Service Contract
+  kind: document
+  module: field_service
+  submittable: true
+  company_scoped: true
+  title_field: customer_name
+  numbering: {template: "FSC-{YYYY}-{seq:4}", date_field: start_date}
+  description: "A service contract and maintenance plan: while active it creates a maintenance work order for every planned visit (once per visit), and its response and resolution times apply to the customer's work orders."
+  fields:
+    - {name: company, type: link, to: Company, required: true, default_expr: "user.default_company", in_filter: true}
+    - {name: customer, type: link, to: Customer, required: true, in_filter: true}
+    - {name: customer_name, type: data, fetch_from: customer.customer_name, read_only: true, in_list: true}
+    - {name: equipment, type: link, to: CustomerEquipment, in_list: true, description: "Empty = the contract covers all of the customer's equipment"}
+    - {name: start_date, type: date, required: true, in_list: true}
+    - {name: end_date, type: date, required: true, in_list: true}
+    - {name: frequency, type: select, options: [Days, Weeks, Months, Years], required: true, default: Months, label: Visit Frequency}
+    - {name: repeat_every, type: int, label: Every, required: true, default: 1, min: 1, max: 1000, description: "e.g. every 3 months"}
+    - {name: first_due_date, type: date, label: First Visit, description: "Empty = the start date"}
+    - {name: lead_days, type: int, label: Create Work Orders (Days Ahead), default: 7, min: 0, max: 365}
+    - {name: next_due_date, type: date, label: Next Visit, read_only: true, no_copy: true, in_list: true}
+    - {name: occurrences, type: int, label: Visits Planned, read_only: true, no_copy: true}
+    - {name: work_type, type: select, options: [Repair, Installation, Maintenance, Inspection], required: true, default: Maintenance}
+    - {name: priority, type: select, options: [Low, Medium, High, Urgent], required: true, default: Medium}
+    - {name: checklist_template, type: link, to: ServiceChecklistTemplate}
+    - {name: estimated_duration_minutes, type: int, label: Visit Duration (Minutes), min: 5, max: 1440}
+    - {name: sla_response_hours, type: decimal, label: Response Time (Hours), min: "0", max: "87600", description: "0 = the priority's target from Field Service Settings"}
+    - {name: sla_resolution_hours, type: decimal, label: Resolution Time (Hours), min: "0", max: "87600"}
+    - {name: contract_value, type: currency, min: "0", in_list: true}
+    - {name: covers_parts, type: check, description: "Parts on the customer's work orders are free while the contract runs"}
+    - {name: covers_labour, type: check, description: "Labour on the customer's work orders is free while the contract runs"}
+    - {name: status, type: select, options: [Draft, Active, Expired, Cancelled], default: Draft, read_only: true, no_copy: true, in_list: true, in_filter: true}
+    - {name: terms, type: text, max_length: 20000}
+  rules:
+    - {name: ends_after_start, check: "doc.start_date == null || doc.end_date == null || doc.end_date >= doc.start_date", message: "The contract cannot end before it starts"}
+    - {name: first_visit_in_term, check: "doc.first_due_date == null || (doc.first_due_date >= doc.start_date && doc.first_due_date <= doc.end_date)", message: "The first visit must fall within the contract's term"}
+    - {name: resolution_after_response, check: "doc.sla_resolution_hours == 0.0 || doc.sla_resolution_hours >= doc.sla_response_hours", message: "The resolution time cannot be shorter than the response time"}
+  form:
+    - {label: Contract, fields: [company, customer, customer_name, equipment, start_date, end_date, contract_value, status]}
+    - {label: Maintenance Plan, fields: [frequency, repeat_every, first_due_date, lead_days, next_due_date, occurrences, work_type, priority, checklist_template, estimated_duration_minutes]}
+    - {label: Service Level and Coverage, fields: [sla_response_hours, sla_resolution_hours, covers_parts, covers_labour]}
+    - {label: Terms, collapsible: true, fields: [terms]}
+  list: {columns: [number, customer_name, equipment, end_date, next_due_date, status], sort: start_date desc}
