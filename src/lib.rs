@@ -171,6 +171,7 @@ mod tests {
     #[test]
     fn packages_validate_with_the_platform() {
         let mut all = ferrum_domain::packages().expect("platform packages");
+        all.extend(ferrum_app_erp::packages().expect("ERP's packages"));
         let ours = super::packages().expect("app packages parse");
         assert_eq!(ours.iter().map(|p| p.name()).collect::<Vec<_>>(), ["field_service"]);
         assert_eq!(ours[0].sql.len(), 1, "the exclusion constraint ships with the package");
