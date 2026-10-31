@@ -262,7 +262,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
-| **0.1.1** | Requires the ERP app : installing it in a workspace without ERP installs ERP whole, with its interface, rather than a few of its packages. |
+| **0.1.1** | Requires the ERP app: installing it in a workspace without ERP installs ERP whole, with its interface, rather than a few of its packages. |
 | **0.1.0** | First release: field service on Ferrum's own customers, items, stock and books. Service requests from staff, the helpdesk and a rate-limited … |
 
 Every version is in [CHANGELOG.md](CHANGELOG.md).
