@@ -497,7 +497,7 @@ async fn check_stock(hc: &mut HookCtx<'_>, co: &Company, doc: &Doc) -> Result<Ve
             errors.push(FieldError::new("warehouse", "choose the warehouse the part comes from").in_row("parts", i));
             continue;
         };
-        let serials = ferrum_domain::stock::parse_serials(s(r, "serial_no"));
+        let serials = ferrum_app_erp::stock::parse_serials(s(r, "serial_no"));
         if b(&it, "has_serial_no") && Decimal::from(serials.len()) != d(r, "qty") {
             errors.push(
                 FieldError::new(

@@ -261,10 +261,15 @@ async fn scenario() {
     let db = Db::connect(DbConfig { url, max_connections: 16, ..Default::default() }).await.expect("connect");
     sqlx::raw_sql("drop schema if exists public cascade; create schema public;").execute(&db.pool).await.expect("reset");
     let mut packages = ferrum_domain::packages().expect("platform packages");
+    packages.extend(ferrum_app_erp::packages().expect("ERP's packages"));
     packages.extend(ferrum_app_field_service::packages().expect("app packages"));
     let catalog = Catalog::from_packages(packages).expect("catalog");
     let mut hooks = HookRegistry::default();
     ferrum_domain::register(&mut hooks);
+    ferrum_app_erp::register(&mut hooks);
+    for source in ferrum_app_erp::reports() {
+        ferrum_domain::reports::add_source(source);
+    }
     ferrum_app_field_service::register(&mut hooks);
     for source in ferrum_app_field_service::reports() {
         ferrum_domain::reports::add_source(source);
@@ -272,6 +277,7 @@ async fn scenario() {
     let k = Kernel::boot(db, catalog, hooks, KernelSettings::default(), None).await.expect("boot");
     k.set_file_store(Arc::new(MemFiles::default()));
     ferrum_domain::maintenance(&k).await.expect("partitions");
+    ferrum_app_erp::maintenance(&k).await.expect("partitions");
     let tenant = k
         .create_tenant(NewTenant {
             slug: "heatco".into(),

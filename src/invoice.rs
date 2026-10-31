@@ -30,7 +30,7 @@ pub async fn lines(k: &Kernel, ctx: &Ctx, tx: &mut Tx, wo: &Doc, settings: &Sett
     for r in rows(wo, "parts") {
         let free = b(&r, "warranty") || b(wo, "parts_covered");
         let mut desc = s(&r, "item_name").unwrap_or_default().to_string();
-        let serials = ferrum_domain::stock::parse_serials(s(&r, "serial_no"));
+        let serials = ferrum_app_erp::stock::parse_serials(s(&r, "serial_no"));
         if !serials.is_empty() {
             desc.push_str(&format!(" (serial {})", serials.join(", ")));
         }
