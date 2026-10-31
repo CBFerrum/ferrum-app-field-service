@@ -981,7 +981,9 @@ async fn scenario() {
     assert!(!view.to_string().contains("alice@heatco.test") && !view.to_string().contains("80"), "no emails or rates: {view}");
     let html = call(&k, tenant, None, "GET", &format!("/track/{token}"), json!({}), vec![], "text/html").await.expect("page");
     assert!(html.content_type.starts_with("text/html") && String::from_utf8_lossy(&html.body).contains("Scheduled"));
-    let tampered = format!("{}0", &token[..token.len() - 1]);
+    // Another last character than the token's own (a token may end in `0` already).
+    let last = if token.ends_with('0') { '1' } else { '0' };
+    let tampered = format!("{}{last}", &token[..token.len() - 1]);
     assert!(matches!(follow(tampered).await, Err(Error::NotFound(_))));
     let expired = signed(&admin, uid(&web), Utc::now().timestamp() - 60).await;
     assert!(matches!(follow(expired).await, Err(Error::NotFound(_))), "expired links answer like unknown ones");
