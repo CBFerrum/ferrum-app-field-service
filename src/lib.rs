@@ -157,6 +157,7 @@ pub(crate) async fn my_technician(k: &Kernel, ctx: &Ctx, tx: &mut Tx) -> Result<
 }
 
 include!(concat!(env!("OUT_DIR"), "/packages.rs"));
+include!(concat!(env!("OUT_DIR"), "/ui.rs"));
 
 /// This app's manifest (`app.yaml`).
 pub const MANIFEST: &str = include_str!("../app.yaml");
@@ -178,5 +179,14 @@ mod tests {
         all.extend(ours);
         ferrum_meta::Catalog::from_packages(all).expect("the app's metadata validates with the platform's");
         assert!(super::MANIFEST.contains("id: field-service") && super::MANIFEST.contains("packages: [field_service]"));
+    }
+
+    #[test]
+    fn the_interface_is_a_release_the_platform_takes() {
+        let m = ferrum_apps::AppManifest::parse(super::MANIFEST).expect("app.yaml");
+        assert_eq!(m.routes(), vec![("field-service".to_string(), vec![])]);
+        let files = super::UI.iter().map(|(p, b)| (p.to_string(), b.to_vec())).collect();
+        let ui = ferrum_apps::ui::prepare("field-service", files).expect("ui/dist is an interface release");
+        assert!(super::UI.iter().any(|(p, _)| *p == "index.html") && !super::UI.iter().any(|(p, _)| p.starts_with('.')), "{}", ui.digest);
     }
 }
