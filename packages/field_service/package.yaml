@@ -17,6 +17,7 @@ modules:
 personal_data:
   - {entity: ServiceRequest, match: contact_email, erase: [contact_name, contact_email, contact_phone]}
   - {entity: ServiceWorkOrder, match: contact_email, erase: [contact_name, contact_email, contact_phone]}
+  - {entity: Technician, match: user_email, erase: [user_email, phone]}
 roles:
   - name: Service Manager
     description: Runs field service — settings, technicians and their costs, contracts, requests, work orders, appointments — and invoices completed work.
