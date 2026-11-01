@@ -1,0 +1,691 @@
+/* A technician's day, the job as they work it, and the work order for the office. Colours, radii
+   and shadows are the platform's tokens, so dark mode and high contrast follow by themselves.
+   Loads with the screens that use it. */
+
+/* ── a technician's day ── */
+
+.fs-day {
+  max-width: 44rem;
+}
+
+.fs-group {
+  margin: 0.5rem 0 0.375rem;
+  color: var(--muted-foreground);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.fs-stops {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.fs-stop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.fs-stop[data-current] {
+  border-left-color: var(--primary);
+  box-shadow: var(--shadow);
+}
+
+.fs-stop[data-done] {
+  opacity: 0.8;
+}
+
+.fs-stop-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+}
+
+.fs-stop-time {
+  margin-right: 0.25rem;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.fs-stop-title {
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.fs-stop-title a {
+  color: var(--text);
+}
+
+.fs-stop-sub,
+.fs-stop-travel {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.fs-stop-travel {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.fs-stop-address,
+.fs-address {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.fs-stop-problem {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.fs-stop-links,
+.fs-stop-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.fs-stop-foot {
+  margin-top: 0.25rem;
+}
+
+/* Big enough for a thumb, on the screens made for one. */
+.fs-stop .btn,
+.fs-sheet .btn,
+.fs-sheet .fs-form .input,
+.fs-sheet .fs-form .select {
+  min-height: 44px;
+  height: auto;
+  padding-inline: 1rem;
+  font-size: 15px;
+}
+
+/* ── the job, as the technician works it ── */
+
+.fs-sheet {
+  max-width: 44rem;
+}
+
+.fs-sheet-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.fs-sheet-badges,
+.fs-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.fs-switch-view {
+  margin-left: auto;
+}
+
+.fs-sec,
+.fs-card-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.fs-sec-h {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.fs-sec-h .faint {
+  font-size: 13px;
+  font-weight: 450;
+}
+
+.fs-pre {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.fs-where p {
+  margin: 0;
+}
+
+.fs-bar-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+
+.fs-bar-track i {
+  display: block;
+  height: 100%;
+  background: var(--success);
+}
+
+.fs-checks,
+.fs-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fs-check {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+}
+
+.fs-check input {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  accent-color: var(--primary);
+}
+
+.fs-check[data-done] .fs-check-text {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+
+.fs-checks li + li,
+.fs-rows li + li {
+  border-top: 1px solid var(--border);
+}
+
+.fs-req {
+  margin-left: auto;
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.fs-rows li {
+  padding: 0.5rem 0;
+}
+
+.fs-rows li[data-new] {
+  opacity: 0.7;
+}
+
+.fs-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.fs-row-main p {
+  margin: 0.125rem 0 0;
+  font-size: 12.5px;
+}
+
+.fs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.fs-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.fs-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+}
+
+.fs-switch input {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--primary);
+}
+
+.fs-timer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.fs-timer[data-running] {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.fs-timer p {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.fs-timer-clock {
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+  gap: 0.5rem;
+}
+
+.fs-thumb {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.fs-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fs-photo {
+  display: block;
+  max-width: 100%;
+  max-height: 70dvh;
+  margin: 0 auto;
+}
+
+.fs-photo-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.fs-signed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.fs-signed p {
+  margin: 0;
+}
+
+.fs-signed img {
+  max-width: 100%;
+  height: 6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.fs-sign {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fs-pad {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fs-pad-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 2;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.fs-pad-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fs-pad-foot .faint {
+  margin-right: auto;
+}
+
+/* The one step the job offers next: always in reach at the foot of the screen. */
+.fs-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem calc(0.625rem + env(safe-area-inset-bottom, 0px));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.fs-bar-text {
+  display: flex;
+  flex: 1 1 10rem;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.fs-bar-gaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  font-size: 12.5px;
+}
+
+.fs-bar .btn {
+  min-height: 46px;
+  height: auto;
+  padding-inline: 1.1rem;
+  font-size: 15px;
+}
+
+/* ── the work order, for the office ── */
+
+.fs-co-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.fs-co-title {
+  min-width: 0;
+}
+
+.fs-steps {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.fs-steps li {
+  flex: 1 1 0;
+  min-width: 5.5rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--surface-2);
+  color: var(--muted-foreground);
+  font-size: 12.5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.fs-steps li:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.fs-steps li:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.fs-steps li[data-state="done"] {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.fs-steps li[data-state="current"] {
+  background: var(--primary);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+
+.fs-co-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.fs-co-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.fs-co-job {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.fs-co-side {
+  position: sticky;
+  top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.fs-side-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem;
+}
+
+.fs-side-box h3 {
+  color: var(--muted-foreground);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.fs-side-box p {
+  margin: 0;
+}
+
+.fs-clocks {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fs-clocks li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.625rem;
+}
+
+.fs-clock-text {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.fs-clocks li[data-state="overdue"] .fs-clock-text,
+.fs-clocks li[data-state="late"] .fs-clock-text {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.fs-clocks li[data-state="met"] .fs-clock-text {
+  color: var(--success);
+}
+
+.fs-facts {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.375rem 0.75rem;
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.fs-facts dt {
+  color: var(--muted-foreground);
+}
+
+.fs-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.fs-facts dd p {
+  margin: 0.125rem 0 0;
+  font-size: 12.5px;
+}
+
+.fs-facts dd[data-negative] {
+  color: var(--danger);
+}
+
+.fs-visits,
+.fs-history,
+.fs-earlier {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fs-visits li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.625rem;
+  font-size: 13.5px;
+}
+
+.fs-history {
+  gap: 0.25rem;
+  padding-top: 0.375rem;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.fs-history time {
+  display: inline-block;
+  min-width: 8.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-earlier li + li {
+  padding-top: 0.375rem;
+  border-top: 1px solid var(--border);
+}
+
+.fs-earlier p {
+  margin: 0.125rem 0 0;
+  font-size: 12.5px;
+}
+
+.fs-clamp-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.fs-invoice tr[data-free] td {
+  color: var(--muted-foreground);
+}
+
+/* ── narrower screens ── */
+
+@media (max-width: 960px) {
+  .fs-co-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fs-co-side {
+    position: static;
+  }
+}
+
+@media (max-width: 480px) {
+  .fs-sec,
+  .fs-card-box {
+    padding: 0.75rem;
+  }
+
+  .fs-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .fs-facts dd {
+    margin-bottom: 0.5rem;
+  }
+
+  .fs-timer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fs-bar .btn {
+    flex: 1 1 8rem;
+  }
+}
