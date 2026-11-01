@@ -1,7 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
+- Field Service has an interface of its own, at /field-service/. It opens on the dispatch board for
+  dispatchers and service managers, and on My day for technicians.
+- The dispatch board shows a day across the technicians' lanes, shaded outside each one's working
+  hours in their own time zone, with the drive between jobs drawn and flagged when it does not fit.
+  Waiting jobs sit beside the lanes with how long their service level has left. Drag a job onto a
+  lane to schedule it; while you hold it, the server ranks the technicians for that time and the
+  board says why. Drag a visit to move it, pull its edge to change its length, hold Alt to add a
+  technician instead of moving it. A move shows at once and, if the server refuses it, goes back with
+  the reason on the lane. The keyboard and the job's drawer do everything the pointer does, and one
+  button dispatches every visit that is planned but not sent. A week view shows how full each
+  technician's days are.
+- My day is built for a phone: the jobs in order, each with its address, directions, a number to
+  call, the drive to it and its service level, and the one next step on the job in hand. When the
+  dispatcher moves a job, it says so. A job's page has large ticks for the checklist, parts with
+  their serial numbers, a timer for time, expenses, photos made smaller before they are sent, the
+  customer's signature, and a bar that offers only the next step: start travel, arrive, complete.
+- A work order has a page for the office: where it is on its way, its service-level clocks, the
+  customer, site and equipment with warranty and contract cover, its visits and what happened, what
+  it cost against what it bills, the invoice with covered lines marked, earlier jobs on the same
+  equipment, and a tracking link to copy.
 - Personal data: a person's request now reaches technicians.
 
 ## 0.1.1

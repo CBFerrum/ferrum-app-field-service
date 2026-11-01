@@ -5,7 +5,7 @@
   <img alt="Ferrum Field Service" src="docs/assets/banner-light.svg" width="100%">
 </picture>
 
-[![CI](https://github.com/CBFerrum/ferrum-app-field-service/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-field-service/actions/workflows/ci.yml) ![Version](https://img.shields.io/badge/version-0.1.1-a63e30?style=flat-square) ![Ferrum](https://img.shields.io/badge/Ferrum-%3E%3D0.3.1%2C%20%3C0.4-2f5bea?style=flat-square) ![License](https://img.shields.io/badge/license-AGPL--3.0-3b82f6?style=flat-square) ![Rust](https://img.shields.io/badge/Rust-native%20app-b7410e?style=flat-square&logo=rust&logoColor=white) ![MCP](https://img.shields.io/badge/AI%20agents-MCP-8b5cf6?style=flat-square)
+[![CI](https://github.com/CBFerrum/ferrum-app-field-service/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-field-service/actions/workflows/ci.yml) ![Version](https://img.shields.io/badge/version-0.2.0-a63e30?style=flat-square) ![Ferrum](https://img.shields.io/badge/Ferrum-%3E%3D0.3.2%2C%20%3C0.4-2f5bea?style=flat-square) ![License](https://img.shields.io/badge/license-AGPL--3.0-3b82f6?style=flat-square) ![Rust](https://img.shields.io/badge/Rust-native%20app-b7410e?style=flat-square&logo=rust&logoColor=white) ![Interface](https://img.shields.io/badge/interface-React%20%2B%20Vite-0ea5e9?style=flat-square&logo=react&logoColor=white) ![MCP](https://img.shields.io/badge/AI%20agents-MCP-8b5cf6?style=flat-square)
 
 **A native app for [Ferrum](https://github.com/CBFerrum/Ferrum), the open-source, AI-first business platform.**
 
@@ -26,14 +26,14 @@ once.
 
 | At a glance | |
 |---|---|
-| 📦 Version | `0.1.1` |
-| 🧱 Platform | Ferrum `>=0.3.1, <0.4` |
+| 📦 Version | `0.2.0` |
+| 🧱 Platform | Ferrum `>=0.3.2, <0.4` |
 | 🔗 Requires | erp `>=0.1` |
-| 🖥️ Interface | Ferrum's records screens (`/data/field-service/`) |
+| 🖥️ Interface | its own, at `/field-service/` |
 | 🗃️ Records | 21 entities in 1 package |
 | 👥 Roles | 3: Service Manager, Dispatcher, Technician |
 | 📊 Reports | 6 |
-| 🧪 Tests | 11 Rust tests |
+| 🧪 Tests | 11 Rust tests, 11 interface test files |
 
 
 ## Highlights
@@ -117,7 +117,7 @@ stateDiagram-v2
 ```mermaid
 flowchart LR
     subgraph Browser
-        UI["Records screens<br/><small>/data/field-service/</small>"]
+        UI["Its interface<br/><small>/field-service/</small>"]
         BAR["Ferrum bar<br/><small>launcher · search · bell</small>"]
     end
     subgraph Server["Ferrum server"]
@@ -256,6 +256,17 @@ To work on it alongside this app, clone it into the same folder and add to the s
 ferrum-app-erp = { path = "../ferrum-app-erp" }
 ```
 
+The interface lives in `ui/` and builds with Ferrum-Frontend's packages:
+
+```bash
+cd ui
+npm run build      # ui/dist, checked against the size budget
+npm test
+```
+
+With a development server started with `FERRUM_DEV_UI=true`, `ferrum-app dev --ui` serves the pages
+from Vite behind the real bar and session, with hot reload.
+
 
 ### Project layout
 
@@ -263,6 +274,7 @@ ferrum-app-erp = { path = "../ferrum-app-erp" }
 app.yaml      the manifest: id, version, requirements, what it adds to Ferrum
 packages/     metadata: entities, roles, reports, workflows, print formats
 src/          the app's logic in Rust: hooks, actions, endpoints, upkeep jobs
+ui/           its own interface (React + Vite), built into ui/dist
 tests/        integration tests against a real PostgreSQL
 CHANGELOG.md  what changed in each version
 ```
@@ -271,6 +283,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.2.0** | An interface of its own: the dispatch board with drag and drop, a technician's day and job page built for a phone, and a work order page for the office. |
 | **0.1.1** | Requires the ERP app: installing it in a workspace without ERP installs ERP whole, with its interface, rather than a few of its packages. |
 | **0.1.0** | First release: field service on Ferrum's own customers, items, stock and books. Service requests from staff, the helpdesk and a rate-limited … |
 
