@@ -283,6 +283,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.2.1** | Rebuilt with Ferrum-Frontend 80ff179: labels name their fields, and linked titles show their titles. |
 | **0.2.0** | An interface of its own: the dispatch board with drag and drop, a technician's day and job page built for a phone, and a work order page for the office. |
 | **0.1.1** | Requires the ERP app: installing it in a workspace without ERP installs ERP whole, with its interface, rather than a few of its packages. |
 | **0.1.0** | First release: field service on Ferrum's own customers, items, stock and books. Service requests from staff, the helpdesk and a rate-limited … |
