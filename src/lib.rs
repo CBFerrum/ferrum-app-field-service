@@ -26,7 +26,7 @@ mod setup;
 mod site;
 mod work_order;
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use ferrum_domain::reports::ReportSource;
 use ferrum_domain::util::{get, s, sys};
 use ferrum_kernel::{Ctx, Doc, Error, Filter, HookCtx, HookRegistry, Kernel, Result, Tx, store};
@@ -110,6 +110,19 @@ pub(crate) fn int(doc: &Doc, key: &str) -> i64 {
 
 pub(crate) fn ts(doc: &Doc, key: &str) -> Option<DateTime<Utc>> {
     s(doc, key).and_then(|v| ferrum_kernel::value::parse_datetime(v).ok())
+}
+
+/// When a step held on a phone without a connection was taken (`at`), sent later: within the step
+/// before it (`floor`) and now, so a phone's clock cannot put it ahead; one more than five minutes
+/// ahead is refused. None for a step taken now.
+pub(crate) fn held_at(params: &Value, floor: Option<DateTime<Utc>>) -> Result<Option<DateTime<Utc>>> {
+    let Some(at) = params.get("at").filter(|v| !v.is_null()) else { return Ok(None) };
+    let at = at.as_str().and_then(|v| ferrum_kernel::value::parse_datetime(v).ok()).ok_or_else(|| Error::field("at", "must be a date and time"))?;
+    let now = Utc::now();
+    if at > now + Duration::minutes(5) {
+        return Err(Error::field("at", "is later than now"));
+    }
+    Ok(Some(floor.map_or(at, |f| at.max(f)).min(now)))
 }
 
 /// A date-time in the kernel's canonical form (RFC 3339 UTC, milliseconds).

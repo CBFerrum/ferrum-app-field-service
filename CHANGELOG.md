@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.0
+
+A job can be finished without a connection (Ferrum docs/offline.md). The job as last opened is kept on the phone under the workspace's offline lease, with what the page needs to know about the person and what the settings ask before a job is completed, and opens offline from the day or by its link, under Field Service's own worker. What the technician does there waits on the phone as work not sent yet, kept whatever the lease says, and goes in the order taken when the connection is back: setting off and arriving; the checklist, parts, time, expenses and notes; photos and the customer's signature, whose pictures wait in IndexedDB; and completing the job. A change goes as what it does (a task ticked, a row added or taken out, a field set) and is made again on the job as it stands then, against its version, so nobody else's change is undone. One the server refuses is dropped and the reason said, and the job is then not completed after it, so it stays open to be put right; the other steps still go. Setting off, arriving and completing carry when they were taken (`at` on the actions, within the step before it and now), so arrival and completion times, and the SLA verdict on them, are when they happened rather than when the phone sent them; the customer is not emailed "on the way now" for setting off sent long after. The page says when the job was kept and how many steps wait. Built with Ferrum-Frontend 01b8ff0.
+
 ## 0.3.1
 
 Time added by hand is read on the workspace's clock, as the job shows it: a technician whose phone is set to another time zone no longer records hours shifted by the difference. Time that ends in the future is refused, by the page and by the server ("is still to come: record time once it is worked"), with five minutes' slack for a phone's clock a little ahead. Built with Ferrum-Frontend 01b8ff0.

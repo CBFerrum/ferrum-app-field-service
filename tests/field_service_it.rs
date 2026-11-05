@@ -1119,6 +1119,41 @@ async fn scenario() {
     assert_eq!((redo["parts"].as_array().unwrap().len(), redo["labour"].as_array().unwrap().len()), (1, 0), "parts carry over, time is logged again");
     assert_eq!((redo["customer_signature"].clone(), redo["stock_entry"].clone(), redo["sla_status"].clone()), (Value::Null, Value::Null, json!("On Track")));
 
+    // ───────────── a job done without a connection keeps its own times ─────────────
+    // Reported five hours ago with four to respond: arriving now misses it; the phone arrived in
+    // time, without a connection, and sends what it held now, each step with when it was taken.
+    let held = uid(&d
+        .insert(
+            "ServiceWorkOrder",
+            json!({"company": cid.to_string(), "customer": acme.to_string(), "priority": "High", "reported_at": iso(now - Duration::hours(5))}),
+        )
+        .await);
+    d.act("ServiceWorkOrder", held, "schedule", json!({"technician": alice.to_string(), "start": iso(at(5, 9, 0))})).await;
+    d.act("ServiceWorkOrder", held, "dispatch", json!({})).await;
+    let garbled = alice_u.try_act("ServiceWorkOrder", held, "start_travel", json!({"at": "soon"})).await;
+    assert!(refused(&garbled, "at"), "{garbled:?}");
+    let ahead = alice_u.try_act("ServiceWorkOrder", held, "start_travel", json!({"at": iso(Utc::now() + Duration::hours(1))})).await;
+    assert!(refused(&ahead, "at"), "a phone's clock does not put a step ahead: {ahead:?}");
+    let (left, arrived) = (now - Duration::minutes(280), now - Duration::minutes(250));
+    alice_u.act("ServiceWorkOrder", held, "start_travel", json!({"at": iso(left)})).await;
+    alice_u.act("ServiceWorkOrder", held, "arrive", json!({"at": iso(arrived)})).await;
+    let sig = alice_u.upload("ServiceWorkOrder", held, "sig.png", "image/png").await;
+    alice_u
+        .update(
+            "ServiceWorkOrder",
+            held,
+            json!({"customer_signature": sig, "signed_by": "Pat Morgan", "expenses": [{"expense_type": "Parking", "amount": "10"}]}),
+        )
+        .await;
+    // Completed, by the phone's clock, a minute before it arrived: not before arriving.
+    alice_u.act("ServiceWorkOrder", held, "complete", json!({"at": iso(arrived - Duration::minutes(1))})).await;
+    let w = d.get("ServiceWorkOrder", held).await;
+    assert_eq!(
+        (w["travel_started_at"].clone(), w["arrived_at"].clone(), w["completed_at"].clone()),
+        (json!(iso(left)), json!(iso(arrived)), json!(iso(arrived)))
+    );
+    assert_eq!((w["response_breached"].clone(), w["sla_status"].clone()), (json!(false), json!("Met")), "judged by when it happened");
+
     // ───────────── the books still balance ─────────────
     let tb = admin.report("trial_balance", &[("company", cid.to_string())]).await.expect("trial balance");
     assert_eq!(tb["meta"]["balanced"], json!(true), "{}", tb["totals"]);
