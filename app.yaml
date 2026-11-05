@@ -1,6 +1,6 @@
 id: field-service
 name: Field Service
-version: 0.2.4
+version: 0.3.0
 publisher: cbferrum
 summary: "Field service: service requests, work orders, technician scheduling and dispatch, parts and time, checklists, signatures and invoicing"
 description: README.md
@@ -27,6 +27,8 @@ contributes:
       description: Dispatch the day, work the jobs, follow each work order
       icon: wrench
       color: "#a63e30"
+      # A technician's day opens without a connection, so it may be installed on a phone.
+      installable: true
       roles: [Dispatcher, Service Manager, Technician]
   shell.open:
     # A work order opens on its own page; Field Service's other records in its forms and lists.

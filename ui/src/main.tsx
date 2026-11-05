@@ -7,11 +7,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { createBrowserRouter, Link, Navigate, RouterProvider, useRouteError } from "react-router";
+import { createBrowserRouter, Link, Navigate, Outlet, RouterProvider, useRouteError } from "react-router";
 import { routeBase, shell } from "@ferrum/client";
 import { ConfirmHost, EmptyState, ErrorState, PageLoading, Toaster } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
 import { RequireAuth, setFrameMode } from "@ferrum/records/frame";
+import { keepToTheLease } from "./offline";
 import { home } from "./roles";
 import "./styles.css";
 
@@ -53,9 +54,28 @@ function Landing() {
 }
 
 setFrameMode("app", FIELD_SERVICE_PACKAGES);
+keepToTheLease();
+
+// The technician's day opens without a connection under this app's own worker; one that cannot
+// register (a private window, an old browser) leaves it working online.
+if ("serviceWorker" in navigator) {
+  void navigator.serviceWorker.register(`${routeBase("field-service")}sw.js`, { scope: routeBase("field-service") }).catch(() => {});
+}
 
 const router = createBrowserRouter(
   [
+    // The day works offline: outside the sign-in check, which asks the server who is signed in.
+    {
+      path: "/day",
+      element: (
+        <>
+          <Started />
+          <Outlet />
+        </>
+      ),
+      errorElement: <RouteError />,
+      children: [{ index: true, lazy: () => import("./Day").then((m) => ({ Component: m.Day })) }],
+    },
     {
       path: "/",
       element: (
@@ -68,7 +88,6 @@ const router = createBrowserRouter(
       children: [
         { index: true, element: <Landing /> },
         { path: "dispatch", lazy: () => import("./Dispatch").then((m) => ({ Component: m.Dispatch })) },
-        { path: "day", lazy: () => import("./Day").then((m) => ({ Component: m.Day })) },
         { path: "w/:id", lazy: () => import("./Order").then((m) => ({ Component: m.OrderRoute })) },
         { path: "e/:entity", lazy: page("ListView") },
         { path: "e/:entity/:id", lazy: page("FormView") },
