@@ -99,6 +99,16 @@ export function keptPage(store = storage()): PageFacts | null {
   return kept<PageFacts>(cacheName(offlineEnv(), "field-service", "page"), store);
 }
 
+/** What the settings ask of a job before it is completed, as last read (and returned). */
+export function keepRules<T>(rules: T, store = storage()): T {
+  keep(cacheName(offlineEnv(), "field-service", "rules"), rules, store);
+  return rules;
+}
+
+export function keptRules<T>(store = storage()): T | null {
+  return kept<T>(cacheName(offlineEnv(), "field-service", "rules"), store);
+}
+
 // ───────────────────────────── changes, as what they do ─────────────────────────────
 
 export const TABLES = ["parts", "labour", "expenses"] as const;
