@@ -8,7 +8,7 @@ import { api, docPath, type FieldError, formatDecimal } from "@ferrum/client";
 import { Badge, Button, confirmDialog, Field, Icon } from "@ferrum/kit";
 import { type Doc, LinkInput } from "@ferrum/records";
 import { type CheckRow, elapsed, type ExpenseRow, hoursText, type LabourRow, type PartRow, progress, serialNote, serials, stopped, toggled } from "./job";
-import { clock, dayLabel, dayOf } from "./time";
+import { MINUTE, clock, dayLabel, dayOf, fromWallInput } from "./time";
 import type { Outcome } from "./useWork";
 
 /** What the sections share: the job, whether it can still be changed, and how to change it. */
@@ -239,7 +239,11 @@ export function Time({ ctx }: { ctx: Ctx }) {
   const [billable, setBillable] = useState(true);
   const [busy, setBusy] = useState(false);
   const technician = ctx.office ? (who || crew[0]?.technician) : undefined;
-  const valid = !!from && !!to && Date.parse(to) > Date.parse(from) && (!ctx.office || !!technician);
+  // The boxes show the workspace's wall clock, as the rest of the job does.
+  const fromAt = fromWallInput(from, ctx.zone);
+  const toAt = fromWallInput(to, ctx.zone);
+  const ahead = toAt != null && toAt > Date.now() + 5 * MINUTE;
+  const valid = fromAt != null && toAt != null && toAt > fromAt && !ahead && (!ctx.office || !!technician);
 
   const record = async (a: string, z: string, bill = true) => {
     const fresh = { from_time: a, to_time: z, billable: bill, ...(technician ? { technician } : {}) };
@@ -258,7 +262,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
     e.preventDefault();
     if (!valid) return;
     setBusy(true);
-    const out = await record(new Date(from).toISOString(), new Date(to).toISOString(), billable);
+    const out = await record(new Date(fromAt!).toISOString(), new Date(toAt!).toISOString(), billable);
     setBusy(false);
     if (out.ok) {
       setAdding(false);
@@ -350,7 +354,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
             <Field label="Started" htmlFor="time-from" required>
               <input id="time-from" className="input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} />
             </Field>
-            <Field label="Finished" htmlFor="time-to" required error={from && to && !valid ? "Finish after the start." : undefined}>
+            <Field label="Finished" htmlFor="time-to" required error={ahead ? "That is still to come: record time once it is worked." : fromAt != null && toAt != null && toAt <= fromAt ? "Finish after the start." : undefined}>
               <input id="time-to" className="input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} />
             </Field>
             <label className="fs-switch">
