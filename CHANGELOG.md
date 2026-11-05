@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+Personal-data requests find service request, service work order, technician records by the person's phone number as well as their email, and list the technician records holding their name apart, for an administrator to judge (never erased for the name alone) (Ferrum's FERRUM-PRIVACY-002).
+
 ## 0.2.2
 
 Rebuilt with Ferrum-Frontend daeadda: after an action runs, a record page shows what the action said it did rather than only that it is done.
