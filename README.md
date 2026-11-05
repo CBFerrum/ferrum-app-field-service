@@ -283,6 +283,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.3.1** | Time added by hand is read on the workspace's clock, as the job shows it, and time that ends in the future is refused. |
 | **0.3.0** | A technician's day without a connection: kept under the workspace's offline lease, setting off and arriving sent when it is back, the page opening offline. |
 | **0.2.4** | Rebuilt with Ferrum-Frontend 00dea07: a workflow state's kept fields are read-only, its needed ones required. |
 | **0.2.3** | Personal-data requests find service request, service work order, technician records by the person's phone number as well as their email, and list the … |

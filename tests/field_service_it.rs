@@ -578,6 +578,15 @@ async fn scenario() {
     for_bob.push(json!({"technician": bob.to_string(), "from_time": iso(now - Duration::minutes(60)), "to_time": iso(now)}));
     let not_crew = alice_u.try_update("ServiceWorkOrder", wo1, json!({"labour": for_bob})).await;
     assert!(says(&not_crew, "is not assigned to this work order"), "{not_crew:?}");
+    // Time is what was worked: it ends after it starts, and not later than now.
+    let mut ahead = w["labour"].as_array().unwrap().clone();
+    ahead.push(json!({"from_time": iso(now - Duration::minutes(10)), "to_time": iso(now + Duration::minutes(30))}));
+    let to_come = alice_u.try_update("ServiceWorkOrder", wo1, json!({"labour": ahead})).await;
+    assert!(says(&to_come, "is still to come"), "{to_come:?}");
+    let mut backwards = w["labour"].as_array().unwrap().clone();
+    backwards.push(json!({"from_time": iso(now - Duration::minutes(10)), "to_time": iso(now - Duration::minutes(20))}));
+    let reversed = alice_u.try_update("ServiceWorkOrder", wo1, json!({"labour": backwards})).await;
+    assert!(says(&reversed, "must end after it starts"), "{reversed:?}");
 
     // ───────────── completion refused until the job is really done ─────────────
     let incomplete = alice_u.try_act("ServiceWorkOrder", wo1, "complete", json!({})).await;

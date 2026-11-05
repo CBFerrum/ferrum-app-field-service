@@ -325,6 +325,11 @@ impl DocHook for WorkOrderHook {
                 }
                 _ => {}
             }
+            // Time is what was worked: not later than now (five minutes' slack for a device's clock
+            // a little ahead). That it ends after it starts is the package's rule.
+            if ts(r, "to_time").is_some_and(|to| to > Utc::now() + Duration::minutes(5)) {
+                errors.push(FieldError::new("to_time", "is still to come: record time once it is worked").in_row("labour", i));
+            }
         }
         let signature = s(doc, "customer_signature");
         if let Some(sig) = signature
