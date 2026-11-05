@@ -5,10 +5,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { api, todayIso } from "@ferrum/client";
+import { api, bootstrap, todayIso } from "@ferrum/client";
 import { Alert, Badge, Button, EmptyState, ErrorState, Icon, Spinner, toast, useLiveEntity, useShellTitle } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
 import { act, loadBoard, reason } from "./api";
+import type { Board, Lane } from "./board";
+import { hold, keepDay, keptDay, send, unreachable, waiting as heldSteps, type Waiting } from "./offline";
 import { arrange, changes, type Details, directionsUrl, laneOf, nextStep, type Seen, seen, type Stop, telUrl, waiting } from "./journey";
 import { slaChip } from "./sla";
 import { Stale } from "./Stale";
@@ -92,11 +94,20 @@ export function StopCard({ stop, zone, now, current, busy, onGo }: { stop: Stop;
   );
 }
 
+/** A day as kept on the device: the board, the technician's lane and their jobs. */
+interface DayData {
+  board: Board;
+  lane: Lane | undefined;
+  details: [string, Details][];
+}
+
 export function Day() {
   useShellTitle("My day");
   const qc = useQueryClient();
   const me = useMe().data;
-  const email = me?.user.email;
+  // Offline, the person is the one this page was served to.
+  const email = me?.user.email ?? bootstrap()?.person?.email;
+  const [held, setHeld] = useState<Waiting[]>(() => heldSteps());
   const [sp, setSp] = useSearchParams();
   const day = isDay(sp.get("day")) ? sp.get("day")! : todayIso();
   const [now, setNow] = useState(() => Date.now());
@@ -109,13 +120,22 @@ export function Day() {
     queryKey: ["fs", "day", day, email],
     enabled: !!email,
     queryFn: async ({ signal }) => {
-      const board = await loadBoard({ from: day, to: day }, signal);
-      const lane = laneOf(board, email);
-      const ids = [...new Set((lane?.appointments ?? []).map((v) => v.work_order))];
-      const rows = ids.length
-        ? await api.get<{ rows: Details[] }>("/api/v1/ServiceWorkOrder", { filters: JSON.stringify([["id", "in", ids]]), fields: FIELDS, titles: true, limit: 100 }, signal).then((r) => r.rows)
-        : [];
-      return { board, lane, details: new Map(rows.map((r) => [r.id, r])) };
+      try {
+        const board = await loadBoard({ from: day, to: day }, signal);
+        const lane = laneOf(board, email);
+        const ids = [...new Set((lane?.appointments ?? []).map((v) => v.work_order))];
+        const rows = ids.length
+          ? await api.get<{ rows: Details[] }>("/api/v1/ServiceWorkOrder", { filters: JSON.stringify([["id", "in", ids]]), fields: FIELDS, titles: true, limit: 100 }, signal).then((r) => r.rows)
+          : [];
+        const details: [string, Details][] = rows.map((r) => [r.id, r]);
+        keepDay<DayData>(day, { board, lane, details });
+        return { board, lane, details: new Map(details), offline: null as string | null };
+      } catch (e) {
+        // No connection: the day as this device last had it, while the lease lets it keep that.
+        const kept = unreachable(e) ? keptDay<DayData>(day) : null;
+        if (!kept) throw e;
+        return { board: kept.data.board, lane: kept.data.lane, details: new Map(kept.data.details), offline: kept.at };
+      }
     },
   });
 
@@ -149,13 +169,34 @@ export function Day() {
   const todo = arranged ? count - arranged.done.length : 0;
   const first = arranged?.now ?? arranged?.next ?? arranged?.done[0];
 
+  // What was taken offline goes when the server answers again, in the order it was taken.
+  const online = !!q.data && !q.data.offline;
+  useEffect(() => {
+    const flush = () => {
+      if (!heldSteps().length) return;
+      void send((w) => act("ServiceWorkOrder", w.work_order, w.action), reason).then(({ sent, refused }) => {
+        setHeld(heldSteps());
+        if (sent.length) toast(`Sent what you did offline: ${sent.map((w) => w.label).join(", ")}.`);
+        for (const r of refused) toast(`${r.step.label}: ${r.reason}`, "error");
+        if (sent.length || refused.length) void qc.invalidateQueries({ queryKey: ["fs"] });
+      });
+    };
+    if (online) flush();
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, [online, qc]);
+
   const go = async (stop: Stop, action: "start_travel" | "arrive") => {
     setActing(stop.visit.work_order);
     try {
       await act("ServiceWorkOrder", stop.visit.work_order, action);
       toast(action === "start_travel" ? "On your way. The customer is told if they asked to be." : "You are on site.");
     } catch (e) {
-      toast(reason(e), "error");
+      const label = `${action === "start_travel" ? "On your way to" : "On site at"} ${stop.job?.customer_name || stop.visit.customer_name || stop.visit.work_order_number}`;
+      if (unreachable(e) && hold({ work_order: stop.visit.work_order, action, at: new Date().toISOString(), label })) {
+        setHeld(heldSteps());
+        toast("No connection: it is sent when the connection is back.");
+      } else toast(reason(e), "error");
     } finally {
       setActing(null);
       void qc.invalidateQueries({ queryKey: ["fs"] });
@@ -231,6 +272,23 @@ export function Day() {
         </div>
       </header>
       {q.error && q.data && <Stale error={q.error} onRetry={() => void q.refetch()} />}
+      {q.data?.offline && (
+        <Alert tone="info" action={<Button size="sm" icon="refresh" onClick={() => void q.refetch()}>Try again</Button>}>
+          No connection: your day as it was at {clock(Date.parse(q.data.offline), zone)}. What you do is sent when the connection is back.
+        </Alert>
+      )}
+      {held.length > 0 && (
+        <Alert tone="warning">
+          <strong>Waiting to be sent</strong>
+          <ul>
+            {held.map((w) => (
+              <li key={w.key}>
+                {w.label}, {clock(Date.parse(w.at), zone)}
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      )}
       {news.length > 0 && (
         <Alert tone="warning" action={<Button size="sm" onClick={() => setNews([])}>Got it</Button>}>
           <strong>Your dispatcher changed your day.</strong>
