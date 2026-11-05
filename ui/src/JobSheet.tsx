@@ -1,6 +1,7 @@
 // The job as the technician works it, on a phone: where it is and who to call, then the checklist,
 // parts, time, expenses, photos and sign-off to fill in as they go, and a bar that is always in
-// reach and offers only the next step: start travel, arrive, complete.
+// reach and offers only the next step: start travel, arrive, complete. Without a connection all of
+// it works on the job as this phone kept it, and what is done waits to be sent (offline.ts).
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -29,6 +30,10 @@ export interface View {
   switch: boolean;
   /** Changes made are still on their way to the server. */
   saving: boolean;
+  /** Steps of this job waiting on this phone for the connection. */
+  held?: number;
+  /** When the job shown was kept, when the server could not be reached. */
+  offline?: string | null;
 }
 
 const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -89,6 +94,14 @@ export function JobSheet({ v }: { v: View }) {
     setBusy(action);
     const out = await v.run(action);
     setBusy(null);
+    if (out.ok && out.held) {
+      v.setRefused([]);
+      if (action === "complete") {
+        toast("No connection: the job is completed when the connection is back.");
+        navigate("/day");
+      } else toast("No connection: it is sent when the connection is back.");
+      return;
+    }
     if (!out.ok) {
       v.setRefused(out.fields);
       toast(out.fields.length ? "The job cannot be completed yet. See what is missing." : (out.message ?? "That did not work."), "error");
@@ -133,6 +146,16 @@ export function JobSheet({ v }: { v: View }) {
           )}
         </div>
       </header>
+      {(v.offline || (v.held ?? 0) > 0) && (
+        <Alert tone="warning">
+          <span role="status">
+            {v.offline ? `No connection: this job as this phone kept it at ${clock(Date.parse(v.offline), ctx.zone)}. ` : ""}
+            {v.held
+              ? `${v.held === 1 ? "One step waits" : `${v.held} steps wait`} on this phone, and ${v.held === 1 ? "goes" : "go"} when the connection is back.`
+              : "What you do is kept on this phone and sent when the connection is back."}
+          </span>
+        </Alert>
+      )}
       {moved && (
         <Alert tone="warning" action={<Button size="sm" onClick={() => setMoved(null)}>Got it</Button>}>
           {moved}

@@ -6,7 +6,7 @@
 
 use crate::logic::{self, Ts};
 use crate::setup::{Settings, coordinates, has, point};
-use crate::{appointment, dispatch, int, invoice, linked, my_technician, notify, opt_ts, require_dispatcher, stored, ts, ts_value};
+use crate::{appointment, dispatch, held_at, int, invoice, linked, my_technician, notify, opt_ts, require_dispatcher, stored, ts, ts_value};
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use ferrum_domain::util::{Company, b, company, d, elevated, get, id, money, round, rows, s, set, sys};
@@ -458,12 +458,16 @@ impl DocHook for WorkOrderHook {
         let out = match name {
             "suggest_technicians" => dispatch::suggest(hc, doc, params).await?,
             "schedule" => appointment::schedule(hc, doc, params).await?,
-            "dispatch" => appointment::advance(hc, doc, "Dispatched").await?,
-            "start_travel" => appointment::advance(hc, doc, "En Route").await?,
-            "arrive" => appointment::advance(hc, doc, "On Site").await?,
+            "dispatch" => appointment::advance(hc, doc, "Dispatched", params).await?,
+            "start_travel" => appointment::advance(hc, doc, "En Route", params).await?,
+            "arrive" => appointment::advance(hc, doc, "On Site", params).await?,
             "complete" => {
                 let wo = id(doc, "id").ok_or_else(|| Error::internal("work order without id"))?;
-                let done = hc.kernel.submit_tx(hc.ctx, hc.tx, "ServiceWorkOrder", wo, None).await?;
+                let held = held_at(params, ts(doc, "arrived_at"))?;
+                let mut done = hc.kernel.submit_tx(hc.ctx, hc.tx, "ServiceWorkOrder", wo, None).await?;
+                if let Some(at) = held {
+                    done = completed_at(hc, done, at).await?;
+                }
                 json!({"status": done.get("status"), "stock_entry": done.get("stock_entry"), "sales_invoice": done.get("sales_invoice"),
                        "first_time_fix": done.get("first_time_fix")})
             }
@@ -591,6 +595,25 @@ async fn issue_parts(hc: &mut HookCtx<'_>, doc: &Doc) -> Result<()> {
 
 /// `cancel_work_order`: the job will not be done. Open appointments are cancelled (freeing the
 /// technicians' time) and the SLA clock stops.
+/// A completion held on a phone without a connection is stamped when it was done, the SLA verdict
+/// judged by that time and not by when it was sent, and the equipment last serviced that day.
+async fn completed_at(hc: &mut HookCtx<'_>, done: Doc, at: Ts) -> Result<Doc> {
+    let wo = id(&done, "id").ok_or_else(|| Error::internal("work order without id"))?;
+    let mut doc = done.clone();
+    set(&mut doc, "completed_at", ts_value(at));
+    let settings = Settings::load(hc.kernel, hc.ctx, hc.tx).await?;
+    let contract = contract_of(hc.kernel, hc.ctx, hc.tx, &doc).await?;
+    let mut values = sla_fields(&settings, contract.as_ref(), &doc, &hc.ctx.schema.timezone, at);
+    values.insert("completed_at".into(), ts_value(at));
+    hc.kernel.set_values_tx(&sys(hc.ctx), hc.tx, "ServiceWorkOrder", wo, delta(&done, values)).await?;
+    if let Some(e) = id(&done, "equipment") {
+        let mut v = Doc::new();
+        v.insert("last_service_date".into(), json!(local_day(hc.ctx, at).to_string()));
+        hc.kernel.set_values_tx(&sys(hc.ctx), hc.tx, "CustomerEquipment", e, v).await?;
+    }
+    get(hc.kernel, hc.ctx, hc.tx, "ServiceWorkOrder", wo).await
+}
+
 async fn cancel(hc: &mut HookCtx<'_>, doc: &Doc, params: &Value) -> Result<Value> {
     require_dispatcher(hc.ctx, "cancel work orders")?;
     let wo = id(doc, "id").ok_or_else(|| Error::internal("work order without id"))?;

@@ -10,7 +10,8 @@ import { Alert, Badge, Button, EmptyState, ErrorState, Icon, Spinner, toast, use
 import { useMe } from "@ferrum/records";
 import { act, loadBoard, reason } from "./api";
 import type { Board, Lane } from "./board";
-import { hold, keepDay, keptDay, send, unreachable, waiting as heldSteps, type Waiting } from "./offline";
+import { flush } from "./held";
+import { hold, keepDay, keptDay, unreachable, waiting as heldSteps, type Waiting } from "./offline";
 import { arrange, changes, type Details, directionsUrl, laneOf, nextStep, type Seen, seen, type Stop, telUrl, waiting } from "./journey";
 import { slaChip } from "./sla";
 import { Stale } from "./Stale";
@@ -172,28 +173,32 @@ export function Day() {
   // What was taken offline goes when the server answers again, in the order it was taken.
   const online = !!q.data && !q.data.offline;
   useEffect(() => {
-    const flush = () => {
-      if (!heldSteps().length) return;
-      void send((w) => act("ServiceWorkOrder", w.work_order, w.action), reason).then(({ sent, refused }) => {
-        setHeld(heldSteps());
-        if (sent.length) toast(`Sent what you did offline: ${sent.map((w) => w.label).join(", ")}.`);
-        for (const r of refused) toast(`${r.step.label}: ${r.reason}`, "error");
-        if (sent.length || refused.length) void qc.invalidateQueries({ queryKey: ["fs"] });
-      });
-    };
-    if (online) flush();
-    window.addEventListener("online", flush);
-    return () => window.removeEventListener("online", flush);
+    const sendHeld = () => void flush(qc).then(() => setHeld(heldSteps()));
+    if (online) sendHeld();
+    window.addEventListener("online", sendHeld);
+    return () => window.removeEventListener("online", sendHeld);
   }, [online, qc]);
+  // A job's page opens without a connection only if its code came while there was one.
+  useEffect(() => {
+    if (online) void import("./Order").catch(() => undefined);
+  }, [online]);
 
   const go = async (stop: Stop, action: "start_travel" | "arrive") => {
+    const label = `${action === "start_travel" ? "On your way to" : "On site at"} ${stop.job?.customer_name || stop.visit.customer_name || stop.visit.work_order_number}`;
+    const keep = () => hold({ work_order: stop.visit.work_order, action, at: new Date().toISOString(), label });
     setActing(stop.visit.work_order);
     try {
+      // Behind steps already waiting, it waits too, so they all go in the order taken.
+      if (heldSteps().length) {
+        if (!keep()) throw new Error("This phone cannot keep it.");
+        setHeld(heldSteps());
+        void flush(qc).then(() => setHeld(heldSteps()));
+        return;
+      }
       await act("ServiceWorkOrder", stop.visit.work_order, action);
       toast(action === "start_travel" ? "On your way. The customer is told if they asked to be." : "You are on site.");
     } catch (e) {
-      const label = `${action === "start_travel" ? "On your way to" : "On site at"} ${stop.job?.customer_name || stop.visit.customer_name || stop.visit.work_order_number}`;
-      if (unreachable(e) && hold({ work_order: stop.visit.work_order, action, at: new Date().toISOString(), label })) {
+      if (unreachable(e) && keep()) {
         setHeld(heldSteps());
         toast("No connection: it is sent when the connection is back.");
       } else toast(reason(e), "error");

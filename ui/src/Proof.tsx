@@ -1,6 +1,7 @@
 // What a job leaves behind: the photos taken on site, the notes, and the customer's signature with
 // the name of who signed. Photos are made smaller on the phone before they are sent, because the
-// signal where a job is can be poor.
+// signal where a job is can be poor; without one, photos and the signature wait on the phone
+// (IndexedDB, offline.ts) and are sent when it is back.
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import { api, docPath, fetchBlob, uploadFile } from "@ferrum/client";
 import { Button, confirmDialog, Dialog, Field, Icon, Spinner, toast } from "@ferrum/kit";
 import { reason } from "./api";
 import { fitWithin, isImage } from "./job";
+import { blobStore, type Step, unreachable, waiting } from "./offline";
 import { type Ctx } from "./Sections";
 import { SignaturePad } from "./Sign";
 import { clock, dayLabel, dayOf } from "./time";
@@ -19,9 +21,32 @@ interface Attachment {
   url: string;
 }
 
-/** A file of the platform as a picture the page can show (its address needs the session). */
+/** A picture waiting on this phone (`held:<key>`), or the platform's file at `path`. */
+async function picture(path: string): Promise<Blob> {
+  if (!path.startsWith("held:")) return fetchBlob(path);
+  const kept = await blobStore()?.get(path.slice("held:".length));
+  if (!kept) throw new Error("This picture is no longer on this phone.");
+  return kept;
+}
+
+/** Keeps a picture on this phone with the step that sends it; false when it cannot. */
+async function keepPicture(ctx: Ctx, blob: Blob, step: (key: string) => Step): Promise<boolean> {
+  const store = blobStore();
+  if (!store || !ctx.hold) return false;
+  const key = `${ctx.id}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    await store.put(key, blob);
+  } catch {
+    return false;
+  }
+  if (ctx.hold(step(key))) return true;
+  await store.del(key).catch(() => undefined);
+  return false;
+}
+
+/** A file of the platform, or a picture waiting on this phone, as a picture the page can show (a file's address needs the session). */
 function useBlobUrl(path: string | null | undefined) {
-  const blob = useQuery({ queryKey: ["fs", "blob", path], enabled: !!path, staleTime: Infinity, gcTime: 5 * 60_000, queryFn: () => fetchBlob(path!) });
+  const blob = useQuery({ queryKey: ["fs", "blob", path], enabled: !!path, staleTime: Infinity, gcTime: 5 * 60_000, queryFn: () => picture(path!) });
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!blob.data) return setUrl(null);
@@ -102,12 +127,30 @@ export function Photos({ ctx }: { ctx: Ctx }) {
   const [busy, setBusy] = useState(false);
   const signature = typeof ctx.doc.customer_signature === "string" ? ctx.doc.customer_signature : null;
   const photos = (files.data ?? []).filter((f) => isImage(f.file_name) && f.url !== signature);
+  const held = ctx.heldPhotos ?? [];
   const add = async (picked: FileList | null) => {
     const list = Array.from(picked ?? []);
     if (!list.length) return;
     setBusy(true);
+    let waits = 0;
     try {
-      for (const f of list) await uploadFile(await shrink(f), { entity: "ServiceWorkOrder", id: ctx.id });
+      for (const f of list) {
+        const small = await shrink(f);
+        const keep = () => keepPicture(ctx, small, (blob) => ({ work_order: ctx.id, action: "photo", blob, file_name: small.name, at: new Date().toISOString(), label: `A photo of the job (${small.name})` }));
+        // Behind steps already waiting, or without a connection: it waits on this phone.
+        if (waiting().length) {
+          if (!(await keep())) throw new Error("This phone cannot keep the photo.");
+          waits++;
+          continue;
+        }
+        try {
+          await uploadFile(small, { entity: "ServiceWorkOrder", id: ctx.id });
+        } catch (e) {
+          if (!unreachable(e) || !(await keep())) throw e;
+          waits++;
+        }
+      }
+      if (waits) toast(`No connection: ${waits === 1 ? "the photo waits" : `${waits} photos wait`} on this phone, and ${waits === 1 ? "is" : "are"} sent when the connection is back.`);
       void qc.invalidateQueries({ queryKey: key });
     } catch (e) {
       toast(reason(e), "error");
@@ -118,16 +161,19 @@ export function Photos({ ctx }: { ctx: Ctx }) {
   return (
     <section id="photos" className="fs-sec" aria-labelledby="fs-h-photos">
       <h2 id="fs-h-photos" className="fs-sec-h">
-        Photos {photos.length > 0 && <span className="faint">{photos.length}</span>}
+        Photos {photos.length + held.length > 0 && <span className="faint">{photos.length + held.length}</span>}
       </h2>
       {files.isPending ? (
         <Spinner label="Loading photos" />
       ) : files.isError ? (
         <p className="muted">The photos could not be loaded.</p>
-      ) : photos.length ? (
+      ) : photos.length || held.length ? (
         <div className="fs-thumbs">
           {photos.map((f) => (
             <Thumb key={f.id} file={f} onOpen={setOpen} />
+          ))}
+          {held.map((w) => (
+            <Thumb key={w.key} file={{ id: w.key, file_name: `${w.file_name}, waiting to be sent`, size_bytes: 0, url: `held:${w.blob}` }} onOpen={setOpen} />
           ))}
         </div>
       ) : (
@@ -145,7 +191,7 @@ export function Photos({ ctx }: { ctx: Ctx }) {
           </label>
         </div>
       )}
-      {open && <Viewer file={open} editable={ctx.editable} onClose={() => setOpen(null)} onRemoved={() => void qc.invalidateQueries({ queryKey: key })} />}
+      {open && <Viewer file={open} editable={ctx.editable && !open.url.startsWith("held:")} onClose={() => setOpen(null)} onRemoved={() => void qc.invalidateQueries({ queryKey: key })} />}
     </section>
   );
 }
@@ -169,12 +215,24 @@ export function Signoff({ ctx }: { ctx: Ctx }) {
   };
   const sign = async (png: Blob) => {
     setBusy(true);
+    const who = name.trim();
+    const keep = () => keepPicture(ctx, png, (blob) => ({ work_order: ctx.id, action: "sign", blob, signed_by: who, at: new Date().toISOString(), label: `Signed by ${who}` }));
     try {
+      // Behind steps already waiting, or without a connection: the signature waits on this phone.
+      if (waiting().length) {
+        if (!(await keep())) throw new Error("This phone cannot keep the signature.");
+        setAgain(false);
+        toast("Signed: kept on this phone, and sent when the connection is back.");
+        return;
+      }
       const stored = await uploadFile(new File([png], "signature.png", { type: "image/png" }), { entity: "ServiceWorkOrder", id: ctx.id });
-      const out = await ctx.save({ customer_signature: stored.url, signed_by: name.trim() });
+      const out = await ctx.save({ customer_signature: stored.url, signed_by: who });
       if (out.ok) setAgain(false);
     } catch (e) {
-      toast(reason(e), "error");
+      if (unreachable(e) && (await keep())) {
+        setAgain(false);
+        toast("No connection: the signature is kept on this phone, and sent when the connection is back.");
+      } else toast(reason(e), "error");
     } finally {
       setBusy(false);
     }
