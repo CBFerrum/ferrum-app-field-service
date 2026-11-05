@@ -1,5 +1,5 @@
 // Field Service's own worker (Ferrum docs/plan/apps-ui.md §12.5), served at /field-service/sw.js from
-// this release: a technician's day opens without a connection. It keeps the last page the server sent
+// this release: a technician's day, and the jobs on it, open without a connection. It keeps the last page the server sent
 // (with its bootstrap) and the files pages load — this release's, the platform's runtime and theme
 // — and answers from them only when the network cannot. It never answers the API: the day keeps
 // what it could not send itself. Its caches are named "ferrum:field-service:…", so the platform's worker
@@ -24,9 +24,10 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   const scope = new URL(self.registration.scope).pathname;
   if (req.mode === "navigate") {
-    // The technician's day; the board and the records pages need the server anyway.
+    // The technician's day and a job's page (the same page: the app routes it); the board and the
+    // records pages need the server anyway.
     const day = `${scope}day`;
-    if (url.pathname === day || url.pathname === `${day}/`) event.respondWith(page(req, day));
+    if (url.pathname === day || url.pathname === `${day}/` || url.pathname.startsWith(`${scope}w/`)) event.respondWith(page(req, day));
     return;
   }
   if (url.pathname.startsWith("/_ui/") || url.pathname.startsWith("/_shell/")) event.respondWith(file(req, url));

@@ -8,6 +8,7 @@ import { api, docPath, type FieldError, formatDecimal } from "@ferrum/client";
 import { Badge, Button, confirmDialog, Field, Icon } from "@ferrum/kit";
 import { type Doc, LinkInput } from "@ferrum/records";
 import { type CheckRow, elapsed, type ExpenseRow, hoursText, type LabourRow, type PartRow, progress, serialNote, serials, stopped, toggled } from "./job";
+import type { Step, Waiting } from "./offline";
 import { MINUTE, clock, dayLabel, dayOf, fromWallInput } from "./time";
 import type { Outcome } from "./useWork";
 
@@ -23,6 +24,10 @@ export interface Ctx {
   /** What the server refused when the job was last completed, row by row. */
   refused: FieldError[];
   expenseTypes: string[];
+  /** Keeps a step on this phone to send when the connection is back; false when it cannot. */
+  hold?: (step: Step) => boolean;
+  /** Photos of this job waiting on this phone. */
+  heldPhotos?: Extract<Waiting, { action: "photo" }>[];
 }
 
 export const rowsOf = <T,>(doc: Doc, table: string): T[] => (Array.isArray(doc[table]) ? (doc[table] as T[]) : []);

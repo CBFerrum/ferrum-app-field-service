@@ -1,6 +1,8 @@
 // A work order's page. The same job is two screens: the technician's, built for a phone and the
 // next step, and the office's, with the whole state in one place. Whoever plans gets the office's
 // (and the technician's by `?as=field` when they work jobs too); everyone else gets the technician's.
+// Without a connection it opens from what this phone kept: the job, and what the page needs to know
+// about the person (offline.ts).
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -11,6 +13,7 @@ import { can, useEntityMeta, useMe } from "@ferrum/records";
 import { Cockpit } from "./Cockpit";
 import { DEFAULT_RULES, type Rules } from "./job";
 import { JobSheet, type View } from "./JobSheet";
+import { keepPage, keepRules, keptPage, keptRules, type PageFacts, unreachable } from "./offline";
 import { plans, works } from "./roles";
 import type { Ctx } from "./Sections";
 import { Stale } from "./Stale";
@@ -24,20 +27,21 @@ export function OrderRoute() {
 
 function Order({ id }: { id: string }) {
   const [sp] = useSearchParams();
-  const me = useMe().data;
+  const meQuery = useMe();
+  const me = meQuery.data;
   const meta = useEntityMeta("ServiceWorkOrder");
   const work = useWork(id);
   const [refused, setRefused] = useState<FieldError[]>([]);
   const [now, setNow] = useState(() => Date.now());
-  // What the settings ask of a job before it is completed (the platform checks again).
+  // What the settings ask of a job before it is completed (the platform checks again); offline, as last read.
   const rules = useQuery({
     queryKey: ["fs", "rules"],
     staleTime: 5 * 60_000,
     queryFn: () =>
       api
         .get<{ rows: Partial<Rules>[] }>("/api/v1/FieldServiceSettings", { fields: "require_checklist,require_signature", limit: 1 })
-        .then((r) => ({ ...DEFAULT_RULES, ...(r.rows[0] ?? {}) }) as Rules)
-        .catch(() => DEFAULT_RULES),
+        .then((r) => keepRules({ ...DEFAULT_RULES, ...(r.rows[0] ?? {}) } as Rules))
+        .catch((e) => (unreachable(e) ? keptRules<Rules>() : null) ?? DEFAULT_RULES),
   });
   const doc = work.doc;
   useShellTitle(doc ? `${String(doc.number ?? "Work order")} ${String(doc.customer_name ?? "")}`.trim() : null);
@@ -45,20 +49,39 @@ function Order({ id }: { id: string }) {
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
+  // What the page needs about the person, as the server says it; kept for when it cannot.
+  const fresh: PageFacts | null =
+    meta.data && me
+      ? {
+          write: can(meta.data.permissions, "write"),
+          expenseTypes: meta.data.children.expenses?.fields.find((f) => f.name === "expense_type")?.options ?? [],
+          zone: me.timezone ?? "UTC",
+          plans: plans(me.user),
+          works: works(me.user),
+        }
+      : null;
+  const freshKey = JSON.stringify(fresh);
+  useEffect(() => {
+    if (fresh) keepPage(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [freshKey]);
+  const facts = fresh ?? (unreachable(meta.error) || unreachable(meQuery.error) ? keptPage() : null);
 
   if (work.query.error && !doc) return <ErrorState error={work.query.error} onRetry={() => void work.query.refetch()} />;
-  if (meta.error) return <ErrorState error={meta.error} onRetry={() => void meta.refetch()} />;
-  if (!doc || !meta.data || !me) return <PageLoading />;
+  if (meta.error && !facts) return <ErrorState error={meta.error} onRetry={() => void meta.refetch()} />;
+  if (!doc || !facts) return <PageLoading />;
 
   const as = sp.get("as");
-  const office = as === "field" ? false : as === "office" ? true : plans(me.user);
+  // The office's screen needs the form's metadata: without a connection, the technician's.
+  const office = !!meta.data && (as === "field" ? false : as === "office" ? true : facts.plans);
   const status = String(doc.status ?? "");
-  const editable = can(meta.data.permissions, "write") && Number(doc.docstatus ?? 0) === 0 && status !== "Cancelled";
-  const types = meta.data.children.expenses?.fields.find((f) => f.name === "expense_type")?.options ?? [];
+  // Completed on this phone and waiting to be sent: as locked as a job the server completed.
+  const editable = facts.write && Number(doc.docstatus ?? 0) === 0 && status !== "Cancelled" && !work.completedHere;
+  const types = facts.expenseTypes;
   const ctx: Ctx = {
     id,
     doc,
-    zone: me.timezone ?? "UTC",
+    zone: facts.zone,
     editable,
     office,
     // Any edit clears what a refused completion said: the person is putting it right.
@@ -68,6 +91,8 @@ function Order({ id }: { id: string }) {
     },
     refused,
     expenseTypes: types,
+    hold: work.hold,
+    heldPhotos: work.heldPhotos,
   };
   const view: View = {
     ctx,
@@ -75,13 +100,15 @@ function Order({ id }: { id: string }) {
     run: work.run,
     setRefused,
     now,
-    switch: plans(me.user) && works(me.user),
+    switch: facts.plans && facts.works,
     saving: work.saving,
+    held: work.held,
+    offline: work.offline,
   };
   return (
     <>
       {work.query.error && <Stale error={work.query.error} onRetry={() => void work.query.refetch()} />}
-      {office ? <Cockpit v={view} meta={meta.data} /> : <JobSheet v={view} />}
+      {office && meta.data ? <Cockpit v={view} meta={meta.data} /> : <JobSheet v={view} />}
     </>
   );
 }
