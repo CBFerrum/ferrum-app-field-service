@@ -1,6 +1,6 @@
 id: field-service
 name: Field Service
-version: 0.3.0
+version: 0.3.1
 publisher: cbferrum
 summary: "Field service: service requests, work orders, technician scheduling and dispatch, parts and time, checklists, signatures and invoicing"
 description: README.md
