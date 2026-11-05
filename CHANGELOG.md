@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+A technician's day works without a connection (Ferrum docs/offline.md). The day as last loaded is kept on the phone for the person signed in, under the workspace's offline lease, and shown when the server cannot be reached, saying when it was loaded; it is forgotten when the lease ends, when someone else signs in, or when they are signed out everywhere. Setting off and arriving, taken offline, wait on the phone as work not sent yet and go in the order taken when the connection is back; one the server refuses (the job moved meanwhile) is dropped and the reason said. The day's page opens offline under Field Service's own worker, and the app may be installed on a phone. Finishing a job (its checklist, parts, signature and proof) still needs the connection.
+
 ## 0.2.4
 
 Rebuilt with Ferrum-Frontend 00dea07: in a workflow state that names what may change, the other fields show read-only, and the fields the state needs show required.
