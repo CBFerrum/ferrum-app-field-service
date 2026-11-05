@@ -13,7 +13,7 @@ import { can, useEntityMeta, useMe } from "@ferrum/records";
 import { Cockpit } from "./Cockpit";
 import { DEFAULT_RULES, type Rules } from "./job";
 import { JobSheet, type View } from "./JobSheet";
-import { keepPage, keptPage, type PageFacts, unreachable } from "./offline";
+import { keepPage, keepRules, keptPage, keptRules, type PageFacts, unreachable } from "./offline";
 import { plans, works } from "./roles";
 import type { Ctx } from "./Sections";
 import { Stale } from "./Stale";
@@ -33,15 +33,15 @@ function Order({ id }: { id: string }) {
   const work = useWork(id);
   const [refused, setRefused] = useState<FieldError[]>([]);
   const [now, setNow] = useState(() => Date.now());
-  // What the settings ask of a job before it is completed (the platform checks again).
+  // What the settings ask of a job before it is completed (the platform checks again); offline, as last read.
   const rules = useQuery({
     queryKey: ["fs", "rules"],
     staleTime: 5 * 60_000,
     queryFn: () =>
       api
         .get<{ rows: Partial<Rules>[] }>("/api/v1/FieldServiceSettings", { fields: "require_checklist,require_signature", limit: 1 })
-        .then((r) => ({ ...DEFAULT_RULES, ...(r.rows[0] ?? {}) }) as Rules)
-        .catch(() => DEFAULT_RULES),
+        .then((r) => keepRules({ ...DEFAULT_RULES, ...(r.rows[0] ?? {}) } as Rules))
+        .catch((e) => (unreachable(e) ? keptRules<Rules>() : null) ?? DEFAULT_RULES),
   });
   const doc = work.doc;
   useShellTitle(doc ? `${String(doc.number ?? "Work order")} ${String(doc.customer_name ?? "")}`.trim() : null);
