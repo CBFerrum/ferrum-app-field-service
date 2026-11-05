@@ -10,9 +10,9 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Link, Navigate, Outlet, RouterProvider, useRouteError } from "react-router";
 import { routeBase, shell } from "@ferrum/client";
 import { ConfirmHost, EmptyState, ErrorState, PageLoading, Toaster } from "@ferrum/kit";
-import { useMe } from "@ferrum/records";
+import { useMe, useMetaIndex } from "@ferrum/records";
 import { RequireAuth, setFrameMode } from "@ferrum/records/frame";
-import { keepToTheLease } from "./offline";
+import { keepToTheLease, unreachable } from "./offline";
 import { home } from "./roles";
 import "./styles.css";
 
@@ -45,6 +45,21 @@ function Started() {
   return null;
 }
 
+/** A page on its own, outside the frame (which needs the server). */
+function Bare() {
+  return (
+    <main id="main" tabIndex={-1}>
+      <Outlet />
+    </main>
+  );
+}
+
+/** A job opens in the frame; without a connection the frame cannot load, and the job opens on its
+ *  own from what this phone kept (offline.ts). */
+function JobFrame() {
+  return unreachable(useMetaIndex().error) ? <Bare /> : <RequireAuth />;
+}
+
 /** Planners start on the board, everyone else on their day. */
 function Landing() {
   const me = useMe();
@@ -56,7 +71,7 @@ function Landing() {
 setFrameMode("app", FIELD_SERVICE_PACKAGES);
 keepToTheLease();
 
-// The technician's day opens without a connection under this app's own worker; one that cannot
+// The technician's day and its jobs open without a connection under this app's own worker; one that cannot
 // register (a private window, an old browser) leaves it working online.
 if ("serviceWorker" in navigator) {
   void navigator.serviceWorker.register(`${routeBase("field-service")}sw.js`, { scope: routeBase("field-service") }).catch(() => {});
@@ -70,11 +85,22 @@ const router = createBrowserRouter(
       element: (
         <>
           <Started />
-          <Outlet />
+          <Bare />
         </>
       ),
       errorElement: <RouteError />,
       children: [{ index: true, lazy: () => import("./Day").then((m) => ({ Component: m.Day })) }],
+    },
+    {
+      path: "/w/:id",
+      element: (
+        <>
+          <Started />
+          <JobFrame />
+        </>
+      ),
+      errorElement: <RouteError />,
+      children: [{ index: true, lazy: () => import("./Order").then((m) => ({ Component: m.OrderRoute })) }],
     },
     {
       path: "/",
@@ -88,7 +114,6 @@ const router = createBrowserRouter(
       children: [
         { index: true, element: <Landing /> },
         { path: "dispatch", lazy: () => import("./Dispatch").then((m) => ({ Component: m.Dispatch })) },
-        { path: "w/:id", lazy: () => import("./Order").then((m) => ({ Component: m.OrderRoute })) },
         { path: "e/:entity", lazy: page("ListView") },
         { path: "e/:entity/:id", lazy: page("FormView") },
         { path: "r/:name", lazy: page("ReportView") },

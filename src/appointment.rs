@@ -7,7 +7,7 @@
 use crate::logic::Ts;
 use crate::setup::Settings;
 use crate::work_order::{self, OPEN, label};
-use crate::{child_table, is_dispatcher, linked, notify, require_dispatcher, stored, ts, ts_value};
+use crate::{child_table, held_at, is_dispatcher, linked, notify, require_dispatcher, stored, ts, ts_value};
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use ferrum_domain::flow::created;
@@ -361,8 +361,9 @@ fn require_crew_or_dispatcher(ctx: &Ctx, wo: &Doc) -> Result<()> {
 
 /// `dispatch` (Scheduled → Dispatched; dispatchers), `start_travel` (→ En Route) and `arrive`
 /// (→ On Site; the crew or a dispatcher). The current appointment moves and the work order
-/// follows; the first arrival meets (or misses) the response target.
-pub async fn advance(hc: &mut HookCtx<'_>, wo: &Doc, to: &str) -> Result<Value> {
+/// follows; the first arrival meets (or misses) the response target. Setting off and arriving
+/// held on a phone without a connection carry when they were taken (`at`).
+pub async fn advance(hc: &mut HookCtx<'_>, wo: &Doc, to: &str, params: &Value) -> Result<Value> {
     if to == "Dispatched" {
         require_dispatcher(hc.ctx, "dispatch work orders")?;
     } else {
@@ -376,7 +377,10 @@ pub async fn advance(hc: &mut HookCtx<'_>, wo: &Doc, to: &str) -> Result<Value> 
     if !allowed {
         return Err(Error::invalid(format!("the appointment is {}; it cannot become {}", from.to_lowercase(), to.to_lowercase())));
     }
-    let now = Utc::now();
+    // Not on site before setting off, nor before the job was reported.
+    let floor = if to == "On Site" { [ts(&appt, "travel_started_at"), ts(wo, "reported_at")].into_iter().flatten().max() } else { None };
+    let held = if to == "Dispatched" { None } else { held_at(params, floor)? };
+    let now = held.unwrap_or_else(Utc::now);
     let mut stamps = Doc::new();
     let mut wo_stamps = Doc::new();
     match to {
@@ -411,7 +415,8 @@ pub async fn advance(hc: &mut HookCtx<'_>, wo: &Doc, to: &str) -> Result<Value> 
                 format!("Your service visit is scheduled for {when} with {}.", if first.is_empty() { "our technician".into() } else { first.join(" and ") });
             emailed = tell_customer(hc.kernel, hc.ctx, hc.tx, &fresh, "Your service visit is scheduled", &message).await?;
         }
-        "En Route" => {
+        // Not "on the way now" for setting off a phone sent long after.
+        "En Route" if held.is_none_or(|t| t > Utc::now() - Duration::minutes(5)) => {
             let who = rows(&appt, "technicians").iter().find_map(|r| s(r, "technician_name").map(first_name)).unwrap_or_else(|| "Your technician".into());
             emailed = tell_customer(hc.kernel, hc.ctx, hc.tx, &fresh, "Your technician is on the way", &format!("{who} is on the way to you now.")).await?;
         }
