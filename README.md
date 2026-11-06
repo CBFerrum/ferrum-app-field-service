@@ -5,7 +5,7 @@
   <img alt="Ferrum Field Service" src="docs/assets/banner-light.svg" width="100%">
 </picture>
 
-[![CI](https://github.com/CBFerrum/ferrum-app-field-service/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-field-service/actions/workflows/ci.yml) ![Version](https://img.shields.io/badge/version-0.2.0-a63e30?style=flat-square) ![Ferrum](https://img.shields.io/badge/Ferrum-%3E%3D0.3.2%2C%20%3C0.4-2f5bea?style=flat-square) ![License](https://img.shields.io/badge/license-AGPL--3.0-3b82f6?style=flat-square) ![Rust](https://img.shields.io/badge/Rust-native%20app-b7410e?style=flat-square&logo=rust&logoColor=white) ![Interface](https://img.shields.io/badge/interface-React%20%2B%20Vite-0ea5e9?style=flat-square&logo=react&logoColor=white) ![MCP](https://img.shields.io/badge/AI%20agents-MCP-8b5cf6?style=flat-square)
+[![CI](https://github.com/CBFerrum/ferrum-app-field-service/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-field-service/actions/workflows/ci.yml) ![Version](https://img.shields.io/badge/version-0.4.1-a63e30?style=flat-square) ![Ferrum](https://img.shields.io/badge/Ferrum-%3E%3D0.3.2%2C%20%3C0.4-2f5bea?style=flat-square) ![License](https://img.shields.io/badge/license-AGPL--3.0-3b82f6?style=flat-square) ![Rust](https://img.shields.io/badge/Rust-native%20app-b7410e?style=flat-square&logo=rust&logoColor=white) ![Interface](https://img.shields.io/badge/interface-React%20%2B%20Vite-0ea5e9?style=flat-square&logo=react&logoColor=white) ![MCP](https://img.shields.io/badge/AI%20agents-MCP-8b5cf6?style=flat-square)
 
 **A native app for [Ferrum](https://github.com/CBFerrum/Ferrum), the open-source, AI-first business platform.**
 
@@ -26,7 +26,7 @@ once.
 
 | At a glance | |
 |---|---|
-| 📦 Version | `0.2.0` |
+| 📦 Version | `0.4.1` |
 | 🧱 Platform | Ferrum `>=0.3.2, <0.4` |
 | 🔗 Requires | erp `>=0.1` |
 | 🖥️ Interface | its own, at `/field-service/` |
@@ -283,6 +283,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.4.1** | The record pages ask for what their actions read; a request's Reject works from its page. |
 | **0.4.0** | A job finished without a connection: the checklist, parts, time, photos, signature and completion wait on the phone and go in order, each with when it was taken. |
 | **0.3.1** | Time added by hand is read on the workspace's clock, as the job shows it, and time that ends in the future is refused. |
 | **0.3.0** | A technician's day without a connection: kept under the workspace's offline lease, setting off and arriving sent when it is back, the page opening offline. |
