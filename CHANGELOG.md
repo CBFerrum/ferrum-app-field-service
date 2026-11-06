@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+Rebuilt with Ferrum-Frontend bb60115: a record page reads an empty number or check as the server does, so an action whose condition needs one shows, and a workspace's settings open as their one record.
+
 ## 0.4.1
 
 The record pages ask for what their actions read: a service request's Reject needs the reason the customer is told and never asked for it, so it could not work from the request's page; Create Work Order can take a company, Customer Tracking Link can email the link, and it now says the link and how long it works; Cancel Work Order keeps a reason. Schedule and Suggest Technicians need a time, which the work order's page and the dispatch board ask for: a record page no longer offers them as buttons. The suite's reports cover the work order it moves thirty hours back (it failed between midnight and 06:00 in London).

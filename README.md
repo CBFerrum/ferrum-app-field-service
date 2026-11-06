@@ -283,6 +283,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.4.2** | Rebuilt with Ferrum-Frontend bb60115: empty numbers read as the server reads them; settings open as their record. |
 | **0.4.1** | The record pages ask for what their actions read; a request's Reject works from its page. |
 | **0.4.0** | A job finished without a connection: the checklist, parts, time, photos, signature and completion wait on the phone and go in order, each with when it was taken. |
 | **0.3.1** | Time added by hand is read on the workspace's clock, as the job shows it, and time that ends in the future is refused. |
