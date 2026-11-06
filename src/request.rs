@@ -238,7 +238,8 @@ impl DocHook for RequestHook {
                 let settings = Settings::load(hc.kernel, hc.ctx, hc.tx).await?;
                 let (path, url, expires) = tracking_link(hc.ctx, hc.tx, request, settings.tracking_days).await?;
                 let mut emailed = false;
-                if params.get("send").and_then(Value::as_bool) == Some(true) {
+                // Field Service's pages send true; a record page's dialog says "Yes".
+                if params.get("send").is_some_and(|v| v.as_bool().unwrap_or(v.as_str() == Some("Yes"))) {
                     let to = s(doc, "contact_email").ok_or_else(|| Error::field("contact_email", "the request has no contact email to send the link to"))?;
                     let link = url.clone().unwrap_or_else(|| path.clone());
                     let html = format!(
@@ -249,7 +250,10 @@ impl DocHook for RequestHook {
                     );
                     emailed = notify::email_customer(hc.kernel, hc.ctx, hc.tx, to, "Follow your service request", &html, ("ServiceRequest", request)).await?;
                 }
-                Ok(Some(json!({"path": path, "url": url, "expires_at": ts_value(expires), "emailed": emailed})))
+                let link = url.clone().unwrap_or_else(|| path.clone());
+                let told = if emailed { ", and emailed to the contact" } else { "" };
+                let message = format!("The tracking link works until {}{told}: {link}", expires.format("%Y-%m-%d"));
+                Ok(Some(json!({"path": path, "url": url, "expires_at": ts_value(expires), "emailed": emailed, "message": message})))
             }
             _ => Ok(None),
         }
