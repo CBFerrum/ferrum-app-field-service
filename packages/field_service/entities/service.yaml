@@ -35,9 +35,23 @@
     - {label: Site, fields: [equipment, site_address, latitude, longitude, territory]}
     - {label: Outcome, fields: [work_order, rejection_reason, helpdesk_ticket]}
   actions:
-    - {name: make_work_order, label: Create Work Order, permission: read, condition: "doc.status == 'Open'"}
-    - {name: reject, label: Reject, permission: write, condition: "doc.status == 'Open'"}
-    - {name: tracking_link, label: Customer Tracking Link, permission: read}
+    - name: make_work_order
+      label: Create Work Order
+      permission: read
+      condition: "doc.status == 'Open'"
+      params:
+        - {name: company, type: link, to: Company, label: Company, description: The default company when empty}
+    - name: reject
+      label: Reject
+      permission: write
+      condition: "doc.status == 'Open'"
+      params:
+        - {name: reason, type: text, label: Reason, required: true, description: The customer is told it}
+    - name: tracking_link
+      label: Customer Tracking Link
+      permission: read
+      params:
+        - {name: send, type: select, label: Email It to the Contact, options: ["No", "Yes"]}
   list: {columns: [number, subject, customer_name, priority, status], sort: requested_at desc}
 
 - name: ServiceWorkOrderSkill
@@ -194,13 +208,21 @@
     - {label: Origin, collapsible: true, fields: [service_request, cancelled_at, cancellation_reason]}
   unique: [[service_contract, contract_due_date]]
   actions:
-    - {name: suggest_technicians, label: Suggest Technicians, docstatus: [0], permission: read, condition: "doc.status != 'Cancelled'"}
-    - {name: schedule, label: Schedule, docstatus: [0], permission: write, condition: "doc.status != 'Cancelled'"}
+    # The work order's page and the dispatch board ask for these with a time: a record page has none.
+    - {name: suggest_technicians, label: Suggest Technicians, docstatus: [0], permission: read, hidden: true, condition: "doc.status != 'Cancelled'"}
+    - {name: schedule, label: Schedule, docstatus: [0], permission: write, hidden: true, condition: "doc.status != 'Cancelled'"}
     - {name: dispatch, label: Dispatch, docstatus: [0], permission: write, condition: "doc.status == 'Scheduled'"}
     - {name: start_travel, label: Start Travel, docstatus: [0], permission: write, condition: "doc.status == 'Dispatched'"}
     - {name: arrive, label: Arrive On Site, docstatus: [0], permission: write, condition: "doc.status == 'Dispatched' || doc.status == 'En Route'"}
     - {name: complete, label: Complete, docstatus: [0], permission: submit, condition: "doc.status == 'On Site'"}
-    - {name: cancel_work_order, label: Cancel Work Order, docstatus: [0], permission: write, condition: "doc.status != 'Cancelled'", confirm: "Cancel this work order and its open appointments?"}
+    - name: cancel_work_order
+      label: Cancel Work Order
+      docstatus: [0]
+      permission: write
+      condition: "doc.status != 'Cancelled'"
+      confirm: "Cancel this work order and its open appointments?"
+      params:
+        - {name: reason, type: text, label: Reason}
     - {name: create_invoice, label: Create Sales Invoice, docstatus: [1], permission: read, condition: "doc.status == 'Completed'"}
   list: {columns: [number, customer_name, work_type, priority, status, scheduled_start, sla_status], sort: reported_at desc}
 
