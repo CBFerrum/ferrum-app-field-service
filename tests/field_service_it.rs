@@ -1013,9 +1013,19 @@ async fn scenario() {
     let auto = admin.get("SalesInvoice", vid(&done["sales_invoice"])).await;
     assert_eq!((dec(&auto["net_total"]), dec(&auto["grand_total"]), auto["docstatus"].clone()), (n("15"), n("18"), json!(0)), "a draft: the toll and its VAT");
     assert_eq!(body(&follow(token.clone()).await.expect("track"))["visit"]["status"], json!("Invoiced"));
-    let link = d.act("ServiceRequest", req_id, "tracking_link", json!({"send": true})).await;
+    // A record page's dialog says "Yes", and the page shows the message with the link.
+    let link = d.act("ServiceRequest", req_id, "tracking_link", json!({"send": "Yes"})).await;
     assert_eq!(link["emailed"], json!(false), "without the Mail app the link is returned to copy");
     assert!(link["path"].as_str().unwrap().contains("/track/"));
+    assert!(link["message"].as_str().unwrap().starts_with("The tracking link works until ") && link["message"].as_str().unwrap().contains("/track/"), "{link}");
+    // What the record pages can give, the actions ask for; what needs a time is the dispatch board's.
+    let actions = |entity: &str| d.ctx.schema.entity(entity).unwrap().def.actions.clone();
+    let asks = |entity: &str, name: &str| actions(entity).into_iter().find(|a| a.name == name).unwrap().params.into_iter().map(|p| p.name).collect::<Vec<_>>();
+    assert_eq!(asks("ServiceRequest", "make_work_order"), ["company"]);
+    assert_eq!(asks("ServiceRequest", "reject"), ["reason"]);
+    assert_eq!(asks("ServiceRequest", "tracking_link"), ["send"]);
+    assert_eq!(asks("ServiceWorkOrder", "cancel_work_order"), ["reason"]);
+    assert!(actions("ServiceWorkOrder").iter().filter(|a| a.hidden).map(|a| a.name.as_str()).eq(["suggest_technicians", "schedule"]));
     for i in 0..4 {
         public(&k, tenant, "POST", "/requests", json!({"subject": format!("Spam {i}"), "contact_name": "Pat", "contact_email": "ops@acme.test"}))
             .await
@@ -1058,7 +1068,10 @@ async fn scenario() {
 
     // ───────────── reports ─────────────
     let span = [("from_date", (today() - Duration::days(1)).to_string()), ("to_date", (today() + Duration::days(1)).to_string())];
-    let summary = d.report("fs_work_order_summary", &span).await.expect("summary");
+    // Reports of work orders by when they were reported start two days back: one was moved thirty
+    // hours into the past above, which is before yesterday until 06:00 in London.
+    let by_reported = [("from_date", (today() - Duration::days(2)).to_string()), ("to_date", (today() + Duration::days(1)).to_string())];
+    let summary = d.report("fs_work_order_summary", &by_reported).await.expect("summary");
     let all = admin.count("select count(*) from e_service_work_order where tenant_id = $1 and $2::uuid is not null", wo1).await;
     assert_eq!(summary["totals"]["work_orders"], json!(all));
     let status = |s: &str| summary["rows"].as_array().unwrap().iter().find(|r| r["group"] == json!(s)).map(|r| r["work_orders"].clone()).unwrap_or(json!(0));
@@ -1075,7 +1088,7 @@ async fn scenario() {
         (json!(3), json!(2), n("66.67"))
     );
     assert_eq!((by_tech["totals"]["completed"].clone(), by_tech["totals"]["first_time_fixes"].clone()), (json!(4), json!(3)));
-    let sla = d.report("fs_sla_compliance", &span).await.expect("sla");
+    let sla = d.report("fs_sla_compliance", &by_reported).await.expect("sla");
     let high = row(&sla, "High");
     assert_eq!(
         (high["work_orders"].clone(), high["response_met"].clone(), high["response_breached"].clone(), high["response_pending"].clone()),
