@@ -1,7 +1,7 @@
 // A week at a glance: each technician's days as how full they are, to find the day with room or the
 // one that is too full, and open it on the board.
 
-import { initials } from "@ferrum/client";
+import { initials, t } from "@ferrum/client";
 import { type Board, weekOf } from "./board";
 import { hoursText } from "./job";
 import { dayLabel } from "./time";
@@ -9,12 +9,12 @@ import { dayLabel } from "./time";
 export function Week({ board, first, today, onOpen }: { board: Board; first: string; today: string; onOpen: (day: string) => void }) {
   const { days, rows } = weekOf(board, first);
   return (
-    <div className="fs-week-wrap" role="region" tabIndex={0} aria-label="The week">
+    <div className="fs-week-wrap" role="region" tabIndex={0} aria-label={t("The week")}>
       <table className="fs-week">
         <thead>
           <tr>
             <th scope="col" className="fs-week-who">
-              Technician
+              {t("Technician")}
             </th>
             {days.map((d) => (
               <th key={d} scope="col" data-today={d === today || undefined}>

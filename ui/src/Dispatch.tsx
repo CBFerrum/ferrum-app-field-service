@@ -7,7 +7,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type KeyboardEvent, type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { api, todayIso } from "@ferrum/client";
+import { api, todayIso, t as tr } from "@ferrum/client";
 import { Alert, Badge, Button, confirmDialog, EmptyState, ErrorState, Icon, Spinner, toast, useDebounced, useLiveEntity, useShellTitle } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
 import { cancelVisit, dispatchJob, loadBoard, moveVisit, reason, scheduleJob, type Suggestion, suggest } from "./api";
@@ -72,7 +72,7 @@ function DropTip({ board, hover, held, verdict, waiting, tip }: { board: Board; 
       ) : (
         <p className="faint">{waiting ? "Checking…" : "Hold still to see how well they fit."}</p>
       )}
-      {held.kind === "visit" && !hover.add && <p className="faint">Hold Alt to add the technician instead of moving.</p>}
+      {held.kind === "visit" && !hover.add && <p className="faint">{tr("Hold Alt to add the technician instead of moving.")}</p>}
     </div>
   );
 }
@@ -421,7 +421,7 @@ export function Dispatch() {
   const body = q.error && !board ? (
     <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   ) : !board || !axis ? (
-    <Spinner label="Loading the board" />
+    <Spinner label={tr("Loading the board")} />
   ) : (
     <div className="fs-board" data-drawer={selected ? "" : undefined} data-rail={rail ? "" : undefined}>
       {rail && (
@@ -449,25 +449,25 @@ export function Dispatch() {
         ) : lanes.length ? (
           <>
             <Grid lanes={lanes} axis={axis} perHour={perHour} now={now} held={held} hover={hover} selected={selected} notices={notices} tabId={roving} ops={ops} />
-            <ul className="fs-legend" aria-label="Key">
-              <li data-status="scheduled">Planned: needs dispatch</li>
-              <li data-status="dispatched">Dispatched</li>
-              <li data-status="en-route">On the way</li>
-              <li data-status="on-site">On site</li>
-              <li data-status="completed">Done</li>
+            <ul className="fs-legend" aria-label={tr("Key")}>
+              <li data-status="scheduled">{tr("Planned: needs dispatch")}</li>
+              <li data-status="dispatched">{tr("Dispatched")}</li>
+              <li data-status="en-route">{tr("On the way")}</li>
+              <li data-status="on-site">{tr("On site")}</li>
+              <li data-status="completed">{tr("Done")}</li>
               <li>
                 <i className="fs-legend-travel" />
-                Drive
+                {tr("Drive")}
               </li>
               <li>
                 <i className="fs-legend-late" />
-                Drive does not fit
+                {tr("Drive does not fit")}
               </li>
             </ul>
             <details className="fs-keys">
-              <summary>Keyboard and touch</summary>
+              <summary>{tr("Keyboard and touch")}</summary>
               <p>
-                Arrow keys move between jobs, Enter opens one. On a waiting job, S schedules it to the best technician; on a block, M moves it and D dispatches it. Drag with a mouse; on a touch screen or without one, choose a job and use its drawer.
+                {tr("Arrow keys move between jobs, Enter opens one. On a waiting job, S schedules it to the best technician; on a block, M moves it and D dispatches it. Drag with a mouse; on a touch screen or without one, choose a job and use its drawer.")}
                 {canPlan ? " Hold Alt while dropping a visit to add the technician instead of moving it." : ""}
               </p>
             </details>
@@ -476,10 +476,10 @@ export function Dispatch() {
           <EmptyState title={territory ? "No technicians in this territory" : "No technicians yet"} icon="user">
             {territory ? (
               <button type="button" className="link-btn" onClick={() => set({ territory: null })}>
-                Show every territory
+                {tr("Show every territory")}
               </button>
             ) : (
-              <Link to="/e/Technician/new">Add the first technician</Link>
+              <Link to="/e/Technician/new">{tr("Add the first technician")}</Link>
             )}
           </EmptyState>
         )}
@@ -505,19 +505,19 @@ export function Dispatch() {
     <div className="fs-page fs-dispatch">
       <header className="fs-head">
         <div>
-          <h1 className="sr-only">Dispatch</h1>
+          <h1 className="sr-only">{tr("Dispatch")}</h1>
           <Tabs />
           <p className="page-sub" aria-live="polite">
             {board ? `${week ? `Week of ${dayLabel(first, { day: "numeric", month: "long" })}` : dayLabel(day, { weekday: "long", day: "numeric", month: "long" })} · ${lanes.length} ${lanes.length === 1 ? "technician" : "technicians"} · ${board.unscheduled.length} waiting${booked ? ` · ${Math.round(booked * 10) / 10} h booked` : ""}` : " "}
           </p>
         </div>
         <div className="fs-tools">
-          <div className="segmented" role="group" aria-label="Show">
+          <div className="segmented" role="group" aria-label={tr("Show")}>
             <button type="button" aria-pressed={!week} onClick={() => set({ view: null })}>
-              Day
+              {tr("Day")}
             </button>
             <button type="button" aria-pressed={week} onClick={() => set({ view: "week" })}>
-              Week
+              {tr("Week")}
             </button>
           </div>
           <div className="fs-daynav" role="group" aria-label={week ? "Week" : "Day"}>
@@ -525,16 +525,16 @@ export function Dispatch() {
               <Icon name="left" />
             </button>
             <button type="button" className="btn btn-default btn-md" onClick={() => set({ day: null })} aria-current={isToday ? "date" : undefined}>
-              Today
+              {tr("Today")}
             </button>
             <button type="button" className="icon-btn" aria-label={week ? "Next week" : "Next day"} onClick={() => set({ day: addDays(day, week ? 7 : 1) })}>
               <Icon name="chevronRight" />
             </button>
-            <input className="input fs-date" type="date" aria-label="Day" value={day} onChange={(e) => isDay(e.target.value) && set({ day: e.target.value === todayIso() ? null : e.target.value })} />
+            <input className="input fs-date" type="date" aria-label={tr("Day")} value={day} onChange={(e) => isDay(e.target.value) && set({ day: e.target.value === todayIso() ? null : e.target.value })} />
           </div>
           {(territories.data?.length ?? 0) > 0 && (
-            <select className="select fs-territory" aria-label="Territory" value={territory} onChange={(e) => set({ territory: e.target.value || null })}>
-              <option value="">All territories</option>
+            <select className="select fs-territory" aria-label={tr("Territory")} value={territory} onChange={(e) => set({ territory: e.target.value || null })}>
+              <option value="">{tr("All territories")}</option>
               {territories.data!.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.territory_name}
@@ -543,27 +543,27 @@ export function Dispatch() {
             </select>
           )}
           {!week && (
-          <div className="segmented" role="group" aria-label="Zoom">
-            <button type="button" aria-label="Zoom out" disabled={zoomIndex <= 0} onClick={() => zoom(-1)}>
+          <div className="segmented" role="group" aria-label={tr("Zoom")}>
+            <button type="button" aria-label={tr("Zoom out")} disabled={zoomIndex <= 0} onClick={() => zoom(-1)}>
               −
             </button>
-            <button type="button" aria-label="Zoom in" disabled={zoomIndex >= ZOOMS.length - 1} onClick={() => zoom(1)}>
+            <button type="button" aria-label={tr("Zoom in")} disabled={zoomIndex >= ZOOMS.length - 1} onClick={() => zoom(1)}>
               +
             </button>
           </div>
           )}
           <button type="button" className="btn btn-default btn-md" aria-pressed={rail} onClick={() => setRail(!rail)}>
-            Waiting jobs
+            {tr("Waiting jobs")}
           </button>
           {canPlan && toSend.length > 0 && (
-            <Button variant="primary" loading={sending} onClick={() => void dispatchAll()} title="Tell the technicians about every visit that is planned but not sent">
-              Dispatch {toSend.length}
+            <Button variant="primary" loading={sending} onClick={() => void dispatchAll()} title={tr("Tell the technicians about every visit that is planned but not sent")}>
+              {tr("Dispatch {length}", { length: toSend.length })}
             </Button>
           )}
         </div>
       </header>
       {q.error && board && <Stale error={q.error} onRetry={() => void q.refetch()} />}
-      {me && !canPlan && <Alert tone="info">You can look at the board. Planning is for dispatchers and service managers.</Alert>}
+      {me && !canPlan && <Alert tone="info">{tr("You can look at the board. Planning is for dispatchers and service managers.")}</Alert>}
       {body}
       {held && hover && board && <DropTip board={board} hover={hover} held={held} verdict={verdict} waiting={!!probeKey && (settled !== probeKey || probe.isFetching)} tip={tip} />}
     </div>

@@ -4,6 +4,7 @@
 
 import { type PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@ferrum/kit";
+import { t } from "@ferrum/client";
 
 type Point = [number, number];
 
@@ -105,7 +106,7 @@ export function SignaturePad({ busy, blocked, onSave }: { busy: boolean; /** Why
         ref={canvas}
         className="fs-pad-canvas"
         role="img"
-        aria-label="Signature area: the customer signs here with a finger or a pen"
+        aria-label={t("Signature area: the customer signs here with a finger or a pen")}
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
@@ -114,10 +115,10 @@ export function SignaturePad({ busy, blocked, onSave }: { busy: boolean; /** Why
       <div className="fs-pad-foot">
         <span className="faint">{blocked && ink ? blocked : ink ? "Signed" : "Sign above"}</span>
         <Button size="sm" onClick={clear} disabled={!ink || busy}>
-          Clear
+          {t("Clear")}
         </Button>
         <Button size="sm" variant="primary" loading={busy} disabled={!ink || !!blocked} onClick={() => void save()}>
-          Save the signature
+          {t("Save the signature")}
         </Button>
       </div>
     </div>

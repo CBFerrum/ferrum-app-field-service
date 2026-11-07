@@ -5,7 +5,7 @@
 // blocks with the arrow keys.
 
 import { type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { initials } from "@ferrum/client";
+import { initials, t as tr } from "@ferrum/client";
 import { Icon } from "@ferrum/kit";
 import { type Axis, type Lane, type Placed, type Visit, at, isMovable, load, offHours, place, resized, slotAt } from "./board";
 import { clock, hourLabel, MINUTE, span } from "./time";
@@ -247,7 +247,7 @@ function LaneRow({
         {notice && (
           <div className="fs-notice" role="alert">
             <span>{notice}</span>
-            <button type="button" className="icon-btn icon-btn-sm" aria-label="Dismiss" onClick={() => ops.dismiss(lane.technician)}>
+            <button type="button" className="icon-btn icon-btn-sm" aria-label={tr("Dismiss")} onClick={() => ops.dismiss(lane.technician)}>
               <Icon name="x" size={12} />
             </button>
           </div>
@@ -291,10 +291,10 @@ export function Grid({
     // Only when the day changes: after that, scrolling it is the person's.
   }, [axis.day]);
   return (
-    <div ref={scroller} className="fs-grid" role="region" tabIndex={0} aria-label="Technicians across the day" style={{ ["--fs-hour" as string]: `${perHour}px` }}>
+    <div ref={scroller} className="fs-grid" role="region" tabIndex={0} aria-label={tr("Technicians across the day")} style={{ ["--fs-hour" as string]: `${perHour}px` }}>
       <div className="fs-grid-inner" style={{ minWidth: `calc(var(--fs-head) + ${axis.minutes * perMin}px)` }}>
         <div className="fs-ruler">
-          <div className="fs-corner">Technician</div>
+          <div className="fs-corner">{tr("Technician")}</div>
           <div className="fs-ticks" style={{ width: axis.minutes * perMin }} aria-hidden="true">
             {axis.ticks.slice(0, -1).map((t, i) =>
               i % every === 0 ? (
@@ -309,7 +309,7 @@ export function Grid({
           {axis.ticks.map((t) => (
             <i key={t} style={{ left: at(axis, t) * perMin }} />
           ))}
-          {nowAt >= 0 && nowAt <= axis.minutes && <b className="fs-now" style={{ left: nowAt * perMin }} title="Now" />}
+          {nowAt >= 0 && nowAt <= axis.minutes && <b className="fs-now" style={{ left: nowAt * perMin }} title={tr("Now")} />}
         </div>
         {lanes.map((lane) => (
           <LaneRow key={lane.technician} lane={lane} axis={axis} perMin={perMin} held={held} hover={hover} selected={selected} notice={notices[lane.technician]} tabId={tabId} ops={ops} />

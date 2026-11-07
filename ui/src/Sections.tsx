@@ -4,7 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
-import { api, docPath, type FieldError, formatDecimal } from "@ferrum/client";
+import { api, docPath, type FieldError, formatDecimal, t as tr } from "@ferrum/client";
 import { Badge, Button, confirmDialog, Field, Icon } from "@ferrum/kit";
 import { type Doc, LinkInput } from "@ferrum/records";
 import { type CheckRow, elapsed, type ExpenseRow, hoursText, type LabourRow, type PartRow, progress, serialNote, serials, stopped, toggled } from "./job";
@@ -58,10 +58,10 @@ export function Checklist({ ctx }: { ctx: Ctx }) {
   return (
     <section id="checklist" className="fs-sec" aria-labelledby="fs-h-checklist">
       <h2 id="fs-h-checklist" className="fs-sec-h">
-        Checklist {rows.length > 0 && <span className="faint">{p.done} of {p.total} done</span>}
+        {tr("Checklist")} {rows.length > 0 && <span className="faint">{p.done} of {p.total} done</span>}
       </h2>
       {rows.length > 0 && (
-        <div className="fs-bar-track" role="progressbar" aria-label="Checklist progress" aria-valuemin={0} aria-valuemax={p.total} aria-valuenow={p.done}>
+        <div className="fs-bar-track" role="progressbar" aria-label={tr("Checklist progress")} aria-valuemin={0} aria-valuemax={p.total} aria-valuenow={p.done}>
           <i style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }} />
         </div>
       )}
@@ -72,14 +72,14 @@ export function Checklist({ ctx }: { ctx: Ctx }) {
               <label className="fs-check" data-done={r.done || undefined}>
                 <input type="checkbox" checked={!!r.done} disabled={!ctx.editable} onChange={() => tick(r)} />
                 <span className="fs-check-text">{r.task}</span>
-                {r.required && !r.done && <span className="fs-req">Required</span>}
+                {r.required && !r.done && <span className="fs-req">{tr("Required")}</span>}
               </label>
               <Why list={refusals(ctx, "checklist", i)} />
             </li>
           ))}
         </ul>
       ) : (
-        <p className="muted">This job has no checklist.</p>
+        <p className="muted">{tr("This job has no checklist.")}</p>
       )}
     </section>
   );
@@ -124,7 +124,7 @@ export function Parts({ ctx }: { ctx: Ctx }) {
   return (
     <section id="parts" className="fs-sec" aria-labelledby="fs-h-parts">
       <h2 id="fs-h-parts" className="fs-sec-h">
-        Parts used {rows.length > 0 && <span className="faint">{rows.length}</span>}
+        {tr("Parts used")} {rows.length > 0 && <span className="faint">{rows.length}</span>}
       </h2>
       {rows.length > 0 && (
         <ul className="fs-rows">
@@ -136,11 +136,11 @@ export function Parts({ ctx }: { ctx: Ctx }) {
                   {r.warranty && (
                     <>
                       {" "}
-                      <Badge tone="blue">Under warranty</Badge>
+                      <Badge tone="blue">{tr("Under warranty")}</Badge>
                     </>
                   )}
-                  {serials(r.serial_no).length > 0 && <p className="faint">Serial {serials(r.serial_no).join(", ")}</p>}
-                  {r.batch_no && <p className="faint">Batch {r.batch_no}</p>}
+                  {serials(r.serial_no).length > 0 && <p className="faint">{tr("Serial")} {serials(r.serial_no).join(", ")}</p>}
+                  {r.batch_no && <p className="faint">{tr("Batch {batch_no}", { batch_no: r.batch_no })}</p>}
                 </div>
                 {ctx.editable && (
                   <button type="button" className="icon-btn" aria-label={`Remove ${r.item_name ?? "part"}`} onClick={() => void remove(r)}>
@@ -153,40 +153,40 @@ export function Parts({ ctx }: { ctx: Ctx }) {
           ))}
         </ul>
       )}
-      {!rows.length && !adding && <p className="muted">No parts yet.</p>}
+      {!rows.length && !adding && <p className="muted">{tr("No parts yet.")}</p>}
       {ctx.editable &&
         (adding ? (
           <form className="fs-form" onSubmit={add}>
-            <Field label="Part" htmlFor="part-item" required>
-              <LinkInput to="Item" id="part-item" value={item?.id ?? null} title={item?.title} placeholder="Search by name or code" onChange={(id, title) => setItem(id ? { id, title } : null)} />
+            <Field label={tr("Part")} htmlFor="part-item" required>
+              <LinkInput to="Item" id="part-item" value={item?.id ?? null} title={item?.title} placeholder={tr("Search by name or code")} onChange={(id, title) => setItem(id ? { id, title } : null)} />
             </Field>
-            <Field label="How many" htmlFor="part-qty" required>
+            <Field label={tr("How many")} htmlFor="part-qty" required>
               <input id="part-qty" className="input" type="number" inputMode="decimal" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} />
             </Field>
             {serialised && (
-              <Field label="Serial numbers" htmlFor="part-serial" hint={note ?? "One per line. A scanner can type them in."}>
+              <Field label={tr("Serial numbers")} htmlFor="part-serial" hint={note ?? "One per line. A scanner can type them in."}>
                 <textarea id="part-serial" className="textarea" rows={3} autoCapitalize="characters" spellCheck={false} value={serial} onChange={(e) => setSerial(e.target.value)} />
               </Field>
             )}
             {batched && (
-              <Field label="Batch number" htmlFor="part-batch" required>
+              <Field label={tr("Batch number")} htmlFor="part-batch" required>
                 <input id="part-batch" className="input" value={batch} onChange={(e) => setBatch(e.target.value)} />
               </Field>
             )}
             <label className="fs-switch">
               <input type="checkbox" checked={warranty} onChange={(e) => setWarranty(e.target.checked)} />
-              Replaced under warranty: no charge to the customer
+              {tr("Replaced under warranty: no charge to the customer")}
             </label>
             <div className="fs-form-actions">
-              <Button onClick={reset}>Cancel</Button>
+              <Button onClick={reset}>{tr("Cancel")}</Button>
               <Button type="submit" variant="primary" loading={busy} disabled={!item || !(Number(qty) > 0)}>
-                Add the part
+                {tr("Add the part")}
               </Button>
             </div>
           </form>
         ) : (
           <Button icon="plus" onClick={() => setAdding(true)}>
-            Add a part
+            {tr("Add a part")}
           </Button>
         ))}
     </section>
@@ -285,7 +285,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
   return (
     <section id="time" className="fs-sec" aria-labelledby="fs-h-time">
       <h2 id="fs-h-time" className="fs-sec-h">
-        Time {rows.length > 0 && <span className="faint">{hoursText(hours)} h</span>}
+        {tr("Time")} {rows.length > 0 && <span className="faint">{hoursText(hours)} h</span>}
       </h2>
       {ctx.editable && (
         <div className="fs-timer" data-running={timer.startedAt != null || undefined}>
@@ -295,20 +295,20 @@ export function Time({ ctx }: { ctx: Ctx }) {
                 <strong className="fs-timer-clock" aria-live="off">
                   {elapsed(timer.startedAt, timer.now)}
                 </strong>
-                <p className="faint">Running since {clock(timer.startedAt, ctx.zone)}</p>
+                <p className="faint">{tr("Running since")} {clock(timer.startedAt, ctx.zone)}</p>
               </div>
               <Button variant="primary" loading={busy} onClick={() => void stop()}>
-                Stop and save
+                {tr("Stop and save")}
               </Button>
             </>
           ) : (
             <>
               <div>
-                <strong>Time on the job</strong>
-                <p className="faint">Start when you begin work; it is saved when you stop.</p>
+                <strong>{tr("Time on the job")}</strong>
+                <p className="faint">{tr("Start when you begin work; it is saved when you stop.")}</p>
               </div>
               <Button variant="primary" icon="timeline" onClick={timer.start}>
-                Start timer
+                {tr("Start timer")}
               </Button>
             </>
           )}
@@ -324,7 +324,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
                   {r.billable === false && (
                     <>
                       {" "}
-                      <Badge>Not billed</Badge>
+                      <Badge>{tr("Not billed")}</Badge>
                     </>
                   )}
                   <p className="faint">
@@ -332,7 +332,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
                   </p>
                 </div>
                 {ctx.editable && (
-                  <button type="button" className="icon-btn" aria-label="Remove this time" onClick={() => void remove(r)}>
+                  <button type="button" className="icon-btn" aria-label={tr("Remove this time")} onClick={() => void remove(r)}>
                     <Icon name="trash" size={16} />
                   </button>
                 )}
@@ -346,7 +346,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
         (adding ? (
           <form className="fs-form" onSubmit={addByHand}>
             {ctx.office && crew.length > 0 && (
-              <Field label="Who" htmlFor="time-who" required>
+              <Field label={tr("Who")} htmlFor="time-who" required>
                 <select id="time-who" className="select" value={who || crew[0]?.technician} onChange={(e) => setWho(e.target.value)}>
                   {crew.map((c) => (
                     <option key={c.technician} value={c.technician}>
@@ -356,29 +356,29 @@ export function Time({ ctx }: { ctx: Ctx }) {
                 </select>
               </Field>
             )}
-            <Field label="Started" htmlFor="time-from" required>
+            <Field label={tr("Started")} htmlFor="time-from" required>
               <input id="time-from" className="input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} />
             </Field>
-            <Field label="Finished" htmlFor="time-to" required error={ahead ? "That is still to come: record time once it is worked." : fromAt != null && toAt != null && toAt <= fromAt ? "Finish after the start." : undefined}>
+            <Field label={tr("Finished")} htmlFor="time-to" required error={ahead ? "That is still to come: record time once it is worked." : fromAt != null && toAt != null && toAt <= fromAt ? "Finish after the start." : undefined}>
               <input id="time-to" className="input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} />
             </Field>
             <label className="fs-switch">
               <input type="checkbox" checked={billable} onChange={(e) => setBillable(e.target.checked)} />
-              Bill the customer for this time
+              {tr("Bill the customer for this time")}
             </label>
             <div className="fs-form-actions">
-              <Button onClick={() => setAdding(false)}>Cancel</Button>
+              <Button onClick={() => setAdding(false)}>{tr("Cancel")}</Button>
               <Button type="submit" variant="primary" loading={busy} disabled={!valid}>
-                Add the time
+                {tr("Add the time")}
               </Button>
             </div>
           </form>
         ) : (
           <button type="button" className="link-btn" onClick={() => setAdding(true)}>
-            Forgot the timer? Add time by hand
+            {tr("Forgot the timer? Add time by hand")}
           </button>
         ))}
-      {!rows.length && !ctx.editable && <p className="muted">No time was recorded.</p>}
+      {!rows.length && !ctx.editable && <p className="muted">{tr("No time was recorded.")}</p>}
     </section>
   );
 }
@@ -418,7 +418,7 @@ export function Expenses({ ctx }: { ctx: Ctx }) {
   return (
     <section id="expenses" className="fs-sec" aria-labelledby="fs-h-expenses">
       <h2 id="fs-h-expenses" className="fs-sec-h">
-        Expenses {rows.length > 0 && <span className="faint">{formatDecimal(ctx.doc.expense_total ?? 0, 2)}</span>}
+        {tr("Expenses")} {rows.length > 0 && <span className="faint">{formatDecimal(ctx.doc.expense_total ?? 0, 2)}</span>}
       </h2>
       {rows.length > 0 && (
         <ul className="fs-rows">
@@ -430,7 +430,7 @@ export function Expenses({ ctx }: { ctx: Ctx }) {
                   {r.billable === false && (
                     <>
                       {" "}
-                      <Badge>Not billed</Badge>
+                      <Badge>{tr("Not billed")}</Badge>
                     </>
                   )}
                   {r.description && <p className="faint">{r.description}</p>}
@@ -446,37 +446,37 @@ export function Expenses({ ctx }: { ctx: Ctx }) {
           ))}
         </ul>
       )}
-      {!rows.length && !adding && <p className="muted">No expenses.</p>}
+      {!rows.length && !adding && <p className="muted">{tr("No expenses.")}</p>}
       {ctx.editable &&
         (adding ? (
           <form className="fs-form" onSubmit={add}>
-            <Field label="What for" htmlFor="exp-type" required>
+            <Field label={tr("What for")} htmlFor="exp-type" required>
               <select id="exp-type" className="select" value={kind} onChange={(e) => setType(e.target.value)}>
                 {types.map((t) => (
                   <option key={t}>{t}</option>
                 ))}
               </select>
             </Field>
-            <Field label="Amount" htmlFor="exp-amount" required>
+            <Field label={tr("Amount")} htmlFor="exp-amount" required>
               <input id="exp-amount" className="input" type="number" inputMode="decimal" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </Field>
-            <Field label="Note" htmlFor="exp-note">
+            <Field label={tr("Note")} htmlFor="exp-note">
               <input id="exp-note" className="input" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
             <label className="fs-switch">
               <input type="checkbox" checked={billable} onChange={(e) => setBillable(e.target.checked)} />
-              Bill the customer for it
+              {tr("Bill the customer for it")}
             </label>
             <div className="fs-form-actions">
-              <Button onClick={() => setAdding(false)}>Cancel</Button>
+              <Button onClick={() => setAdding(false)}>{tr("Cancel")}</Button>
               <Button type="submit" variant="primary" loading={busy} disabled={!(Number(amount) > 0)}>
-                Add the expense
+                {tr("Add the expense")}
               </Button>
             </div>
           </form>
         ) : (
           <Button icon="plus" onClick={() => setAdding(true)}>
-            Add an expense
+            {tr("Add an expense")}
           </Button>
         ))}
     </section>
