@@ -5,6 +5,7 @@
 
 import { sub, total } from "./decimal";
 import { STEPS } from "./status";
+import { t } from "@ferrum/client";
 
 export interface CheckRow {
   id: string;
@@ -88,7 +89,7 @@ export interface Gap {
 export function gaps(doc: { checklist?: CheckRow[] | null; customer_signature?: string | null; signed_by?: string | null }, rules: Rules): Gap[] {
   const out: Gap[] = [];
   const left = progress(doc.checklist ?? []).requiredLeft;
-  if (rules.require_checklist && left) out.push({ text: `${left} required ${left === 1 ? "task is" : "tasks are"} not done`, section: "checklist" });
+  if (rules.require_checklist && left) out.push({ text: (left === 1 ? t("1 required task is not done") : t("{left} required tasks are not done", { left })), section: "checklist" });
   if (rules.require_signature) {
     if (!doc.customer_signature) out.push({ text: "The customer has not signed", section: "signoff" });
     if (!doc.signed_by?.trim()) out.push({ text: "Who signed is not written down", section: "signoff" });
@@ -124,7 +125,7 @@ export function serialNote(text: string | null | undefined, qty: string | number
   const have = serials(text).length;
   const want = Number(qty);
   if (!Number.isFinite(want) || want <= 0) return null;
-  return have === want ? null : `${have} of ${want} serial ${want === 1 ? "number" : "numbers"} given`;
+  return have === want ? null : (want === 1 ? t("{have} of 1 serial number given", { have }) : t("{have} of {want} serial numbers given", { have, want }));
 }
 
 /** Hours the way a person says them: 1.5, not 1.50. */
@@ -230,7 +231,7 @@ export function history(doc: {
   mark(doc.reported_at, "Problem reported");
   mark(doc.travel_started_at, "Technician set off");
   mark(doc.arrived_at, "Technician arrived on site");
-  mark(doc.signed_at, `Signed${doc.signed_by ? ` by ${doc.signed_by}` : ""}`);
+  mark(doc.signed_at, `Signed${doc.signed_by ? t(" by {signed_by}", { signed_by: doc.signed_by }) : ""}`);
   mark(doc.completed_at, "Job completed");
   mark(doc.cancelled_at, "Job cancelled");
   return out.sort((a, b) => a.at - b.at);

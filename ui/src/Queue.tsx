@@ -52,7 +52,7 @@ export function QueueCard({
       data-busy={busy || undefined}
       draggable={canPlan && !busy}
       tabIndex={tab ? 0 : -1}
-      aria-label={`${job.priority ? `${job.priority} priority, ` : ""}${job.customer_name}, ${job.number}${sla ? `, ${sla.text}` : ""}`}
+      aria-label={`${job.priority ? t("{priority} priority, ", { priority: job.priority }) : ""}${job.customer_name}, ${job.number}${sla ? `, ${sla.text}` : ""}`}
       aria-pressed={selected}
       role="button"
       onDragStart={start}

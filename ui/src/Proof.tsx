@@ -173,7 +173,7 @@ export function Photos({ ctx }: { ctx: Ctx }) {
             <Thumb key={f.id} file={f} onOpen={setOpen} />
           ))}
           {held.map((w) => (
-            <Thumb key={w.key} file={{ id: w.key, file_name: `${w.file_name}, waiting to be sent`, size_bytes: 0, url: `held:${w.blob}` }} onOpen={setOpen} />
+            <Thumb key={w.key} file={{ id: w.key, file_name: t("{file_name}, waiting to be sent", { file_name: w.file_name }), size_bytes: 0, url: `held:${w.blob}` }} onOpen={setOpen} />
           ))}
         </div>
       ) : (

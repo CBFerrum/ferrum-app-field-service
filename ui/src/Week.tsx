@@ -37,7 +37,7 @@ export function Week({ board, first, today, onOpen }: { board: Board; first: str
               </th>
               {cells.map((c) => {
                 const off = c.available === 0 && !c.visits;
-                const text = off ? "Off" : c.available === null ? (c.booked ? `${hoursText(c.booked)} h` : "Free") : `${hoursText(c.booked)} of ${hoursText(c.available)} h`;
+                const text = off ? "Off" : c.available === null ? (c.booked ? `${hoursText(c.booked)} h` : "Free") : t("{value} of {value2} h", { value: hoursText(c.booked), value2: hoursText(c.available) });
                 const jobs = c.visits ? `${c.visits} ${c.visits === 1 ? "job" : "jobs"}` : "";
                 const ratio = c.available ? Math.min(1, c.booked / c.available) : c.booked ? 1 : 0;
                 return (

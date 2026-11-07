@@ -128,11 +128,11 @@ export function changes(before: Seen[], after: Seen[], zone: string): string[] {
   for (const b of before) {
     const a = after.find((x) => x.appointment === b.appointment);
     if (!a) {
-      if (!DONE.includes(b.status)) out.push(`${b.number} is no longer on your day.`);
-    } else if (a.start !== b.start || a.end !== b.end) out.push(`${a.number} moved to ${when(a)}.`);
-    else if (b.status === "Dispatched" && a.status === "Scheduled") out.push(`${a.number} is waiting to be dispatched again.`);
+      if (!DONE.includes(b.status)) out.push(t("{number} is no longer on your day.", { number: b.number }));
+    } else if (a.start !== b.start || a.end !== b.end) out.push(t("{number} moved to {a}.", { number: a.number, a: when(a) }));
+    else if (b.status === "Dispatched" && a.status === "Scheduled") out.push(t("{number} is waiting to be dispatched again.", { number: a.number }));
   }
-  for (const a of after) if (!before.some((b) => b.appointment === a.appointment)) out.push(`${a.number} was added to your day: ${when(a)}.`);
+  for (const a of after) if (!before.some((b) => b.appointment === a.appointment)) out.push(t("{number} was added to your day: {a}.", { number: a.number, a: when(a) }));
   return out;
 }
 
@@ -141,5 +141,5 @@ export function rescheduled(before: Record<string, unknown> | undefined, after: 
   if (!before || (before.scheduled_start === after.scheduled_start && before.scheduled_end === after.scheduled_end)) return null;
   const [a, z] = [Date.parse(String(after.scheduled_start ?? "")), Date.parse(String(after.scheduled_end ?? ""))];
   if (!Number.isFinite(a) || !Number.isFinite(z)) return "The dispatcher took this job off the schedule.";
-  return `The dispatcher moved this job to ${dayLabel(dayOf(a, zone))}, ${clock(a, zone)}–${clock(z, zone)}.`;
+  return t("The dispatcher moved this job to {value}, {a}–{z}.", { value: dayLabel(dayOf(a, zone)), a: clock(a, zone), z: clock(z, zone) });
 }
