@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { type FieldError, t } from "@ferrum/client";
+import { type FieldError, t, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, confirmDialog, Icon, toast } from "@ferrum/kit";
 import { directionsUrl, nextStep, rescheduled, telUrl, waiting } from "./journey";
 import { gaps, type Gap, type Rules } from "./job";
@@ -46,7 +46,7 @@ export function Refusals({ list }: { list: FieldError[] }) {
       <strong>{t("The job cannot be completed yet.")}</strong>
       <ul>
         {list.map((f, i) => (
-          <li key={i}>{sentence([f])}</li>
+          <li key={i}>{isolate(sentence([f]) ?? "")}</li>
         ))}
       </ul>
     </Alert>
@@ -76,7 +76,7 @@ export function JobSheet({ v }: { v: View }) {
   const sla = slaChip({ ...doc } as Parameters<typeof slaChip>[0], v.now, ctx.zone);
   const maps = directionsUrl(doc as Parameters<typeof directionsUrl>[0]);
   const tel = telUrl(text(doc.contact_phone));
-  const customer = text(doc.customer_name) ?? "Customer";
+  const customer = text(doc.customer_name) ?? t("Customer");
   const start = text(doc.scheduled_start);
   const end = text(doc.scheduled_end);
   const equipment = ((doc._titles ?? {}) as Record<string, string>).equipment;
@@ -85,9 +85,9 @@ export function JobSheet({ v }: { v: View }) {
   const go = async (action: "start_travel" | "arrive" | "complete") => {
     if (action === "complete") {
       const ok = await confirmDialog({
-        title: "Complete this job?",
-        message: "The parts leave your van's stock and the job is locked. The customer's invoice follows from what you recorded.",
-        confirmLabel: "Complete the job",
+        title: t("Complete this job?"),
+        message: t("The parts leave your van's stock and the job is locked. The customer's invoice follows from what you recorded."),
+        confirmLabel: t("Complete the job"),
       });
       if (!ok) return;
     }
@@ -104,7 +104,7 @@ export function JobSheet({ v }: { v: View }) {
     }
     if (!out.ok) {
       v.setRefused(out.fields);
-      toast(out.fields.length ? "The job cannot be completed yet. See what is missing." : (out.message ?? "That did not work."), "error");
+      toast(out.fields.length ? t("The job cannot be completed yet. See what is missing.") : (out.message ?? t("That did not work.")), "error");
       if (out.fields.length) window.scrollTo({ top: 0, behavior: scrollBehavior() });
       return;
     }
@@ -112,7 +112,7 @@ export function JobSheet({ v }: { v: View }) {
     if (action === "complete") {
       toast(t("Job completed."));
       navigate("/day");
-    } else toast(action === "start_travel" ? "On your way." : "You are on site.");
+    } else toast(action === "start_travel" ? t("On your way.") : t("You are on site."));
   };
 
   return (
@@ -128,8 +128,8 @@ export function JobSheet({ v }: { v: View }) {
       </nav>
       <header className="fs-sheet-head">
         <div className="fs-sheet-title">
-          <h1 className="page-title">{customer}</h1>
-          <p className="page-sub">{[text(doc.number), text(doc.work_type)].filter(Boolean).join(" · ")}</p>
+          <h1 className="page-title">{isolate(customer)}</h1>
+          <p className="page-sub">{isolate([text(doc.number), text(doc.work_type)].filter(Boolean).join(" · "))}</p>
         </div>
         <div className="fs-sheet-badges">
           {v.saving && (
@@ -137,11 +137,11 @@ export function JobSheet({ v }: { v: View }) {
               {t("Saving…")}
             </span>
           )}
-          <Badge tone={tone(status)}>{status}</Badge>
-          {(doc.priority === "Urgent" || doc.priority === "High") && <Badge tone={priorityTone(String(doc.priority))}>{String(doc.priority)}</Badge>}
+          <Badge tone={tone(status)}>{isolate(status)}</Badge>
+          {(doc.priority === "Urgent" || doc.priority === "High") && <Badge tone={priorityTone(String(doc.priority))}>{isolate(String(doc.priority))}</Badge>}
           {sla && (
             <Badge tone={sla.tone} title={sla.title}>
-              {sla.text}
+              {isolate(sla.text)}
             </Badge>
           )}
         </div>
@@ -149,26 +149,26 @@ export function JobSheet({ v }: { v: View }) {
       {(v.offline || (v.held ?? 0) > 0) && (
         <Alert tone="warning">
           <span role="status">
-            {v.offline ? `No connection: this job as this phone kept it at ${clock(Date.parse(v.offline), ctx.zone)}. ` : ""}
+            {v.offline ? t("No connection: this job as this phone kept it at {value}. ", { value: clock(Date.parse(v.offline), ctx.zone) }) : ""}
             {v.held
-              ? `${v.held === 1 ? "One step waits" : `${v.held} steps wait`} on this phone, and ${v.held === 1 ? "goes" : "go"} when the connection is back.`
-              : "What you do is kept on this phone and sent when the connection is back."}
+              ? t("{value} on this phone, and {value2} when the connection is back.", { value: v.held === 1 ? "One step waits" : `${v.held} steps wait`, value2: v.held === 1 ? "goes" : "go" })
+              : t("What you do is kept on this phone and sent when the connection is back.")}
           </span>
         </Alert>
       )}
       {moved && (
         <Alert tone="warning" action={<Button size="sm" onClick={() => setMoved(null)}>{t("Got it")}</Button>}>
-          {moved}
+          {isolate(moved)}
         </Alert>
       )}
       <Refusals list={ctx.refused.filter((f) => !f.row || f.row[0] === "checklist")} />
       {status === "Cancelled" && <Alert tone="error">{t("This job was cancelled")}{text(doc.cancellation_reason) ? `: ${text(doc.cancellation_reason)}` : "."}</Alert>}
 
       <section className="fs-sec fs-where" aria-label={t("Where and who")}>
-        {text(doc.site_address) && <p className="fs-address">{text(doc.site_address)}</p>}
+        {text(doc.site_address) && <p className="fs-address">{isolate(text(doc.site_address) ?? "")}</p>}
         {start && end && (
           <p className="muted">
-            {dayLabel(dayOf(Date.parse(start), ctx.zone))}, {clock(Date.parse(start), ctx.zone)}–{clock(Date.parse(end), ctx.zone)} ({span(Math.max(0, Date.parse(end) - Date.parse(start)))})
+            {isolate(dayLabel(dayOf(Date.parse(start), ctx.zone)))}, {isolate(clock(Date.parse(start), ctx.zone))}–{isolate(clock(Date.parse(end), ctx.zone))} ({isolate(span(Math.max(0, Date.parse(end) - Date.parse(start))))})
           </p>
         )}
         {(maps || tel) && (
@@ -188,10 +188,10 @@ export function JobSheet({ v }: { v: View }) {
         {(equipment || text(doc.serial_no)) && (
           <p>
             <span className="faint">{t("Equipment")} </span>
-            {[equipment, text(doc.serial_no) && `serial ${text(doc.serial_no)}`].filter(Boolean).join(", ")}
+            {isolate([equipment, text(doc.serial_no) && `serial ${text(doc.serial_no)}`].filter(Boolean).join(", "))}
             {doc.under_warranty === true && (
               <>
-                {" "}
+                {isolate(" ")}
                 <Badge tone="blue">{t("Under warranty")}</Badge>
               </>
             )}
@@ -200,7 +200,7 @@ export function JobSheet({ v }: { v: View }) {
         {text(doc.description) && (
           <div>
             <h2 className="fs-sec-h">{t("The problem")}</h2>
-            <p className="fs-pre">{text(doc.description)}</p>
+            <p className="fs-pre">{isolate(text(doc.description) ?? "")}</p>
           </div>
         )}
       </section>
@@ -223,13 +223,13 @@ export function JobSheet({ v }: { v: View }) {
                   <span className="fs-bar-gaps">
                     {left.map((g) => (
                       <button key={g.text} type="button" className="link-btn" onClick={() => jump(g.section)}>
-                        {g.text}
+                        {isolate(g.text)}
                       </button>
                     ))}
                   </span>
                 </>
               ) : (
-                <strong>{step.action === "complete" ? "Everything is in" : status === "Dispatched" ? "Ready to go" : "On your way"}</strong>
+                <strong>{step.action === "complete" ? t("Everything is in") : status === "Dispatched" ? t("Ready to go") : t("On your way")}</strong>
               )}
             </div>
             {status === "Dispatched" && (
@@ -238,7 +238,7 @@ export function JobSheet({ v }: { v: View }) {
               </Button>
             )}
             <Button variant="primary" size="md" disabled={!!busy && busy !== step.action} loading={busy === step.action} onClick={() => void go(step.action)}>
-              {step.label}
+              {isolate(step.label)}
             </Button>
           </>
         ) : (

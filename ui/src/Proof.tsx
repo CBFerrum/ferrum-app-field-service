@@ -82,7 +82,7 @@ async function shrink(file: File, max = 1600): Promise<File> {
 function Thumb({ file, onOpen }: { file: Attachment; onOpen: (f: Attachment) => void }) {
   const { url, failed } = useBlobUrl(file.url);
   return (
-    <button type="button" className="fs-thumb" onClick={() => onOpen(file)} aria-label={`Open ${file.file_name}`}>
+    <button type="button" className="fs-thumb" onClick={() => onOpen(file)} aria-label={t("Open {file_name}", { file_name: file.file_name })}>
       {url ? <img src={url} alt="" /> : failed ? <Icon name="alert" /> : <Spinner small />}
     </button>
   );
@@ -91,7 +91,7 @@ function Thumb({ file, onOpen }: { file: Attachment; onOpen: (f: Attachment) => 
 function Viewer({ file, editable, onClose, onRemoved }: { file: Attachment; editable: boolean; onClose: () => void; onRemoved: () => void }) {
   const { url } = useBlobUrl(file.url);
   const remove = async () => {
-    if (!(await confirmDialog({ title: "Delete this photo?", confirmLabel: "Delete", danger: true }))) return;
+    if (!(await confirmDialog({ title: t("Delete this photo?"), confirmLabel: t("Delete"), danger: true }))) return;
     try {
       await api.del(`/api/files/${file.id}`);
       onRemoved();
@@ -136,7 +136,7 @@ export function Photos({ ctx }: { ctx: Ctx }) {
     try {
       for (const f of list) {
         const small = await shrink(f);
-        const keep = () => keepPicture(ctx, small, (blob) => ({ work_order: ctx.id, action: "photo", blob, file_name: small.name, at: new Date().toISOString(), label: `A photo of the job (${small.name})` }));
+        const keep = () => keepPicture(ctx, small, (blob) => ({ work_order: ctx.id, action: "photo", blob, file_name: small.name, at: new Date().toISOString(), label: t("A photo of the job ({name})", { name: small.name }) }));
         // Behind steps already waiting, or without a connection: it waits on this phone.
         if (waiting().length) {
           if (!(await keep())) throw new Error("This phone cannot keep the photo.");
@@ -150,7 +150,7 @@ export function Photos({ ctx }: { ctx: Ctx }) {
           waits++;
         }
       }
-      if (waits) toast(`No connection: ${waits === 1 ? "the photo waits" : `${waits} photos wait`} on this phone, and ${waits === 1 ? "is" : "are"} sent when the connection is back.`);
+      if (waits) toast(t("No connection: {value} on this phone, and {value2} sent when the connection is back.", { value: waits === 1 ? "the photo waits" : `${waits} photos wait`, value2: waits === 1 ? "is" : "are" }));
       void qc.invalidateQueries({ queryKey: key });
     } catch (e) {
       toast(reason(e), "error");
@@ -182,7 +182,7 @@ export function Photos({ ctx }: { ctx: Ctx }) {
       {ctx.editable && (
         <div className="fs-photo-add">
           <label className="btn btn-default btn-md" aria-busy={busy}>
-            <Icon name="upload" size={15} /> {busy ? "Sending…" : "Take a photo"}
+            <Icon name="upload" size={15} /> {busy ? t("Sending…") : t("Take a photo")}
             <input type="file" accept="image/*" capture="environment" className="sr-only" disabled={busy} onChange={(e) => { void add(e.target.files); e.target.value = ""; }} />
           </label>
           <label className="btn btn-default btn-md" aria-busy={busy}>
@@ -216,7 +216,7 @@ export function Signoff({ ctx }: { ctx: Ctx }) {
   const sign = async (png: Blob) => {
     setBusy(true);
     const who = name.trim();
-    const keep = () => keepPicture(ctx, png, (blob) => ({ work_order: ctx.id, action: "sign", blob, signed_by: who, at: new Date().toISOString(), label: `Signed by ${who}` }));
+    const keep = () => keepPicture(ctx, png, (blob) => ({ work_order: ctx.id, action: "sign", blob, signed_by: who, at: new Date().toISOString(), label: t("Signed by {who}", { who }) }));
     try {
       // Behind steps already waiting, or without a connection: the signature waits on this phone.
       if (waiting().length) {
@@ -243,14 +243,14 @@ export function Signoff({ ctx }: { ctx: Ctx }) {
       <h2 id="fs-h-signoff" className="fs-sec-h">
         {t("Sign-off")}
       </h2>
-      <Field label={t("What was done")} htmlFor="work-notes" hint={ctx.editable ? "Saved when you leave the box." : undefined}>
+      <Field label={t("What was done")} htmlFor="work-notes" hint={ctx.editable ? t("Saved when you leave the box.") : undefined}>
         <textarea id="work-notes" className="textarea" rows={3} readOnly={!ctx.editable} value={text} onChange={(e) => setText(e.target.value)} onBlur={keepNotes} />
       </Field>
       {signature && !again && (
         <div className="fs-signed">
-          {image.url ? <img src={image.url} alt={`Signature of ${signedBy || "the customer"}`} /> : <Spinner small />}
+          {image.url ? <img src={image.url} alt={t("Signature of {value}", { value: signedBy || "the customer" })} /> : <Spinner small />}
           <p>
-            {t("Signed by")} <strong>{signedBy || "the customer"}</strong>
+            {t("Signed by")} <strong>{signedBy || t("the customer")}</strong>
             {signedAt ? `, ${dayLabel(dayOf(Date.parse(signedAt), ctx.zone))} ${clock(Date.parse(signedAt), ctx.zone)}` : ""}
           </p>
           {ctx.editable && (

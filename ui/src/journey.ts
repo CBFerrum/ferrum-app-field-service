@@ -4,6 +4,7 @@
 
 import { type Board, type Lane, type Visit } from "./board";
 import { clock, dayLabel, dayOf } from "./time";
+import { t } from "@ferrum/client";
 
 /** The work order behind a visit, as far as the day's list shows it. */
 export interface Details {
@@ -69,11 +70,11 @@ export type Step = { action: "start_travel" | "arrive" | "complete"; label: stri
 export function nextStep(status: string | null | undefined): Step {
   switch (status) {
     case "Dispatched":
-      return { action: "start_travel", label: "Start travel" };
+      return { action: "start_travel", label: t("Start travel") };
     case "En Route":
-      return { action: "arrive", label: "I've arrived" };
+      return { action: "arrive", label: t("I've arrived") };
     case "On Site":
-      return { action: "complete", label: "Complete the job" };
+      return { action: "complete", label: t("Complete the job") };
     default:
       return null;
   }

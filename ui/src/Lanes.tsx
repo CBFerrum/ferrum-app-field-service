@@ -5,7 +5,7 @@
 // blocks with the arrow keys.
 
 import { type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { initials, t as tr } from "@ferrum/client";
+import { initials, t as tr, isolate } from "@ferrum/client";
 import { Icon } from "@ferrum/kit";
 import { type Axis, type Lane, type Placed, type Visit, at, isMovable, load, offHours, place, resized, slotAt } from "./board";
 import { clock, hourLabel, MINUTE, span } from "./time";
@@ -115,7 +115,7 @@ function Block({ p, lane, axis, perMin, selected, held, tab, ops }: { p: Placed;
           className="fs-travel"
           data-late={p.late > 0 || undefined}
           style={{ left: p.travel.from * perMin, width: (p.travel.to - p.travel.from) * perMin, top: p.row * ROW + 50 }}
-          title={`Drive from ${p.travel.origin === "home" ? "home" : p.travel.origin}: about ${span(p.travel.minutes * MINUTE)}`}
+          title={tr("Drive from {value}: about {value2}", { value: p.travel.origin === "home" ? "home" : p.travel.origin, value2: span(p.travel.minutes * MINUTE) })}
         />
       )}
       <div
@@ -146,7 +146,7 @@ function Block({ p, lane, axis, perMin, selected, held, tab, ops }: { p: Placed;
           {p.late > 0 && <Icon name="alert" size={12} />} {v.customer_name || v.work_order_number}
         </span>
         <span className="fs-block-sub">
-          {when}
+          {isolate(when)}
           {tag ? ` · ${tag}` : ""}
         </span>
         {movable && <span className="fs-grip fs-grip-end" onPointerDown={grip("end")} aria-hidden="true" />}
@@ -209,12 +209,12 @@ function LaneRow({
     <div className="fs-lane" role="group" aria-label={`${lane.technician_name}, ${l.text}`}>
       <div className="fs-lane-head">
         <span className="fs-avatar" aria-hidden="true">
-          {initials(lane.technician_name)}
+          {isolate(initials(lane.technician_name))}
         </span>
         <div className="fs-lane-who">
-          <strong title={lane.technician_name}>{lane.technician_name}</strong>
+          <strong title={lane.technician_name}>{isolate(lane.technician_name)}</strong>
           <span className="faint fs-lane-load" data-over={l.over || undefined}>
-            {[lane.territory_name, l.text].filter(Boolean).join(" · ")}
+            {isolate([lane.territory_name, l.text].filter(Boolean).join(" · "))}
           </span>
           {l.available !== null && l.available > 0 && (
             <span className="fs-meter" aria-hidden="true">
@@ -234,19 +234,19 @@ function LaneRow({
         {off.map((o) => (
           <span key={o.from} className="fs-off" style={{ left: o.from * perMin, width: (o.to - o.from) * perMin }} aria-hidden="true" />
         ))}
-        {!items.length && <span className="fs-free faint">{l.available === 0 ? "Not working" : "No jobs"}</span>}
+        {!items.length && <span className="fs-free faint">{l.available === 0 ? tr("Not working") : tr("No jobs")}</span>}
         {items.map((p) => (
           <Block key={p.visit.appointment} p={p} lane={lane} axis={axis} perMin={perMin} selected={selected === p.visit.work_order} held={held?.kind === "visit" && held.appointment === p.visit.appointment} tab={tabId === p.visit.appointment} ops={ops} />
         ))}
         {here && (
           <div className="fs-ghost" data-add={here.add || undefined} style={{ left: Math.max(0, at(axis, here.start)) * perMin, width: Math.max(10, (Math.min(axis.minutes, at(axis, here.end)) - Math.max(0, at(axis, here.start))) * perMin) }} aria-hidden="true">
-            {here.add ? "Add · " : ""}
-            {clock(here.start, axis.zone)}–{clock(here.end, axis.zone)}
+            {here.add ? tr("Add · ") : ""}
+            {isolate(clock(here.start, axis.zone))}–{isolate(clock(here.end, axis.zone))}
           </div>
         )}
         {notice && (
           <div className="fs-notice" role="alert">
-            <span>{notice}</span>
+            <span>{isolate(notice)}</span>
             <button type="button" className="icon-btn icon-btn-sm" aria-label={tr("Dismiss")} onClick={() => ops.dismiss(lane.technician)}>
               <Icon name="x" size={12} />
             </button>
@@ -299,7 +299,7 @@ export function Grid({
             {axis.ticks.slice(0, -1).map((t, i) =>
               i % every === 0 ? (
                 <span key={t} style={{ left: at(axis, t) * perMin }}>
-                  {hourLabel(t, axis.zone)}
+                  {isolate(hourLabel(t, axis.zone))}
                 </span>
               ) : null,
             )}
