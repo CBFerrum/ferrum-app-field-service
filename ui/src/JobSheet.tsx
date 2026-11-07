@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { type FieldError } from "@ferrum/client";
+import { type FieldError, t } from "@ferrum/client";
 import { Alert, Badge, Button, confirmDialog, Icon, toast } from "@ferrum/kit";
 import { directionsUrl, nextStep, rescheduled, telUrl, waiting } from "./journey";
 import { gaps, type Gap, type Rules } from "./job";
@@ -43,7 +43,7 @@ export function Refusals({ list }: { list: FieldError[] }) {
   if (!list.length) return null;
   return (
     <Alert tone="error">
-      <strong>The job cannot be completed yet.</strong>
+      <strong>{t("The job cannot be completed yet.")}</strong>
       <ul>
         {list.map((f, i) => (
           <li key={i}>{sentence([f])}</li>
@@ -97,9 +97,9 @@ export function JobSheet({ v }: { v: View }) {
     if (out.ok && out.held) {
       v.setRefused([]);
       if (action === "complete") {
-        toast("No connection: the job is completed when the connection is back.");
+        toast(t("No connection: the job is completed when the connection is back."));
         navigate("/day");
-      } else toast("No connection: it is sent when the connection is back.");
+      } else toast(t("No connection: it is sent when the connection is back."));
       return;
     }
     if (!out.ok) {
@@ -110,19 +110,19 @@ export function JobSheet({ v }: { v: View }) {
     }
     v.setRefused([]);
     if (action === "complete") {
-      toast("Job completed.");
+      toast(t("Job completed."));
       navigate("/day");
     } else toast(action === "start_travel" ? "On your way." : "You are on site.");
   };
 
   return (
     <div className="fs-page fs-sheet">
-      <nav className="crumbs" aria-label="Breadcrumb">
-        <Link to="/day">My day</Link>
+      <nav className="crumbs" aria-label={t("Breadcrumb")}>
+        <Link to="/day">{t("My day")}</Link>
         <Icon name="chevronRight" size={12} />
         {v.switch && (
           <Link className="fs-switch-view" to="?as=office">
-            Office view
+            {t("Office view")}
           </Link>
         )}
       </nav>
@@ -134,7 +134,7 @@ export function JobSheet({ v }: { v: View }) {
         <div className="fs-sheet-badges">
           {v.saving && (
             <span className="faint" role="status">
-              Saving…
+              {t("Saving…")}
             </span>
           )}
           <Badge tone={tone(status)}>{status}</Badge>
@@ -157,14 +157,14 @@ export function JobSheet({ v }: { v: View }) {
         </Alert>
       )}
       {moved && (
-        <Alert tone="warning" action={<Button size="sm" onClick={() => setMoved(null)}>Got it</Button>}>
+        <Alert tone="warning" action={<Button size="sm" onClick={() => setMoved(null)}>{t("Got it")}</Button>}>
           {moved}
         </Alert>
       )}
       <Refusals list={ctx.refused.filter((f) => !f.row || f.row[0] === "checklist")} />
-      {status === "Cancelled" && <Alert tone="error">This job was cancelled{text(doc.cancellation_reason) ? `: ${text(doc.cancellation_reason)}` : "."}</Alert>}
+      {status === "Cancelled" && <Alert tone="error">{t("This job was cancelled")}{text(doc.cancellation_reason) ? `: ${text(doc.cancellation_reason)}` : "."}</Alert>}
 
-      <section className="fs-sec fs-where" aria-label="Where and who">
+      <section className="fs-sec fs-where" aria-label={t("Where and who")}>
         {text(doc.site_address) && <p className="fs-address">{text(doc.site_address)}</p>}
         {start && end && (
           <p className="muted">
@@ -175,31 +175,31 @@ export function JobSheet({ v }: { v: View }) {
           <div className="fs-stop-links">
             {maps && (
               <a className="btn btn-default" href={maps} target="_blank" rel="noopener noreferrer">
-                <Icon name="external" size={15} /> Directions
+                <Icon name="external" size={15} /> {t("Directions")}
               </a>
             )}
             {tel && (
               <a className="btn btn-default" href={tel}>
-                <Icon name="user" size={15} /> Call{text(doc.contact_name) ? ` ${text(doc.contact_name)!.split(" ")[0]}` : ""}
+                <Icon name="user" size={15} /> {t("Call")}{text(doc.contact_name) ? ` ${text(doc.contact_name)!.split(" ")[0]}` : ""}
               </a>
             )}
           </div>
         )}
         {(equipment || text(doc.serial_no)) && (
           <p>
-            <span className="faint">Equipment </span>
+            <span className="faint">{t("Equipment")} </span>
             {[equipment, text(doc.serial_no) && `serial ${text(doc.serial_no)}`].filter(Boolean).join(", ")}
             {doc.under_warranty === true && (
               <>
                 {" "}
-                <Badge tone="blue">Under warranty</Badge>
+                <Badge tone="blue">{t("Under warranty")}</Badge>
               </>
             )}
           </p>
         )}
         {text(doc.description) && (
           <div>
-            <h2 className="fs-sec-h">The problem</h2>
+            <h2 className="fs-sec-h">{t("The problem")}</h2>
             <p className="fs-pre">{text(doc.description)}</p>
           </div>
         )}
@@ -213,13 +213,13 @@ export function JobSheet({ v }: { v: View }) {
       <Signoff ctx={ctx} />
 
       {/* The one step the job offers next, always in reach. */}
-      <div className="fs-bar" role="region" aria-label="Next step">
+      <div className="fs-bar" role="region" aria-label={t("Next step")}>
         {step ? (
           <>
             <div className="fs-bar-text">
               {step.action === "complete" && left.length > 0 ? (
                 <>
-                  <strong>Still to do</strong>
+                  <strong>{t("Still to do")}</strong>
                   <span className="fs-bar-gaps">
                     {left.map((g) => (
                       <button key={g.text} type="button" className="link-btn" onClick={() => jump(g.section)}>
@@ -233,8 +233,8 @@ export function JobSheet({ v }: { v: View }) {
               )}
             </div>
             {status === "Dispatched" && (
-              <Button size="md" disabled={!!busy} loading={busy === "arrive"} onClick={() => void go("arrive")} title="Skip the travel step: you are already there">
-                Already here
+              <Button size="md" disabled={!!busy} loading={busy === "arrive"} onClick={() => void go("arrive")} title={t("Skip the travel step: you are already there")}>
+                {t("Already here")}
               </Button>
             )}
             <Button variant="primary" size="md" disabled={!!busy && busy !== step.action} loading={busy === step.action} onClick={() => void go(step.action)}>
@@ -247,7 +247,7 @@ export function JobSheet({ v }: { v: View }) {
               <strong>{note ?? status}</strong>
             </div>
             <Link className="btn btn-default btn-md" to="/day">
-              Back to my day
+              {t("Back to my day")}
             </Link>
           </>
         )}

@@ -5,7 +5,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { api, docPath, fetchBlob, uploadFile } from "@ferrum/client";
+import { api, docPath, fetchBlob, uploadFile, t } from "@ferrum/client";
 import { Button, confirmDialog, Dialog, Field, Icon, Spinner, toast } from "@ferrum/kit";
 import { reason } from "./api";
 import { fitWithin, isImage } from "./job";
@@ -109,12 +109,12 @@ function Viewer({ file, editable, onClose, onRemoved }: { file: Attachment; edit
       footer={
         editable ? (
           <Button variant="danger" onClick={() => void remove()}>
-            Delete the photo
+            {t("Delete the photo")}
           </Button>
         ) : undefined
       }
     >
-      {url ? <img className="fs-photo" src={url} alt={file.file_name} /> : <Spinner label="Loading the photo" />}
+      {url ? <img className="fs-photo" src={url} alt={file.file_name} /> : <Spinner label={t("Loading the photo")} />}
     </Dialog>
   );
 }
@@ -161,12 +161,12 @@ export function Photos({ ctx }: { ctx: Ctx }) {
   return (
     <section id="photos" className="fs-sec" aria-labelledby="fs-h-photos">
       <h2 id="fs-h-photos" className="fs-sec-h">
-        Photos {photos.length + held.length > 0 && <span className="faint">{photos.length + held.length}</span>}
+        {t("Photos")} {photos.length + held.length > 0 && <span className="faint">{photos.length + held.length}</span>}
       </h2>
       {files.isPending ? (
-        <Spinner label="Loading photos" />
+        <Spinner label={t("Loading photos")} />
       ) : files.isError ? (
-        <p className="muted">The photos could not be loaded.</p>
+        <p className="muted">{t("The photos could not be loaded.")}</p>
       ) : photos.length || held.length ? (
         <div className="fs-thumbs">
           {photos.map((f) => (
@@ -177,7 +177,7 @@ export function Photos({ ctx }: { ctx: Ctx }) {
           ))}
         </div>
       ) : (
-        <p className="muted">No photos yet.</p>
+        <p className="muted">{t("No photos yet.")}</p>
       )}
       {ctx.editable && (
         <div className="fs-photo-add">
@@ -186,7 +186,7 @@ export function Photos({ ctx }: { ctx: Ctx }) {
             <input type="file" accept="image/*" capture="environment" className="sr-only" disabled={busy} onChange={(e) => { void add(e.target.files); e.target.value = ""; }} />
           </label>
           <label className="btn btn-default btn-md" aria-busy={busy}>
-            Choose photos
+            {t("Choose photos")}
             <input type="file" accept="image/*" multiple className="sr-only" disabled={busy} onChange={(e) => { void add(e.target.files); e.target.value = ""; }} />
           </label>
         </div>
@@ -222,7 +222,7 @@ export function Signoff({ ctx }: { ctx: Ctx }) {
       if (waiting().length) {
         if (!(await keep())) throw new Error("This phone cannot keep the signature.");
         setAgain(false);
-        toast("Signed: kept on this phone, and sent when the connection is back.");
+        toast(t("Signed: kept on this phone, and sent when the connection is back."));
         return;
       }
       const stored = await uploadFile(new File([png], "signature.png", { type: "image/png" }), { entity: "ServiceWorkOrder", id: ctx.id });
@@ -231,7 +231,7 @@ export function Signoff({ ctx }: { ctx: Ctx }) {
     } catch (e) {
       if (unreachable(e) && (await keep())) {
         setAgain(false);
-        toast("No connection: the signature is kept on this phone, and sent when the connection is back.");
+        toast(t("No connection: the signature is kept on this phone, and sent when the connection is back."));
       } else toast(reason(e), "error");
     } finally {
       setBusy(false);
@@ -241,34 +241,34 @@ export function Signoff({ ctx }: { ctx: Ctx }) {
   return (
     <section id="signoff" className="fs-sec" aria-labelledby="fs-h-signoff">
       <h2 id="fs-h-signoff" className="fs-sec-h">
-        Sign-off
+        {t("Sign-off")}
       </h2>
-      <Field label="What was done" htmlFor="work-notes" hint={ctx.editable ? "Saved when you leave the box." : undefined}>
+      <Field label={t("What was done")} htmlFor="work-notes" hint={ctx.editable ? "Saved when you leave the box." : undefined}>
         <textarea id="work-notes" className="textarea" rows={3} readOnly={!ctx.editable} value={text} onChange={(e) => setText(e.target.value)} onBlur={keepNotes} />
       </Field>
       {signature && !again && (
         <div className="fs-signed">
           {image.url ? <img src={image.url} alt={`Signature of ${signedBy || "the customer"}`} /> : <Spinner small />}
           <p>
-            Signed by <strong>{signedBy || "the customer"}</strong>
+            {t("Signed by")} <strong>{signedBy || "the customer"}</strong>
             {signedAt ? `, ${dayLabel(dayOf(Date.parse(signedAt), ctx.zone))} ${clock(Date.parse(signedAt), ctx.zone)}` : ""}
           </p>
           {ctx.editable && (
             <Button size="sm" onClick={() => setAgain(true)}>
-              Sign again
+              {t("Sign again")}
             </Button>
           )}
         </div>
       )}
       {showPad && (
         <div className="fs-sign">
-          <Field label="Name of the person signing" htmlFor="signed-by" required>
+          <Field label={t("Name of the person signing")} htmlFor="signed-by" required>
             <input id="signed-by" className="input" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
           <SignaturePad busy={busy} blocked={name.trim() ? undefined : "Write who is signing first"} onSave={(png) => void sign(png)} />
         </div>
       )}
-      {!signature && !ctx.editable && <p className="muted">The customer did not sign.</p>}
+      {!signature && !ctx.editable && <p className="muted">{t("The customer did not sign.")}</p>}
     </section>
   );
 }

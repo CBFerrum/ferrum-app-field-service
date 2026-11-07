@@ -8,6 +8,7 @@ import { type Held } from "./Lanes";
 import { type Job, lengthOf } from "./board";
 import { slaChip } from "./sla";
 import { span, stamp, MINUTE } from "./time";
+import { t } from "@ferrum/client";
 
 const SKILLS_SHOWN = 3;
 
@@ -74,16 +75,16 @@ export function QueueCard({
           {job.required_skills.length > SKILLS_SHOWN && <span className="fs-skill">+{job.required_skills.length - SKILLS_SHOWN}</span>}
         </div>
       )}
-      {job.preferred_start && <div className="fs-card-sub faint">Asked for {stamp(Date.parse(job.preferred_start), zone)}</div>}
+      {job.preferred_start && <div className="fs-card-sub faint">{t("Asked for")} {stamp(Date.parse(job.preferred_start), zone)}</div>}
       <div className="fs-card-foot">
         {sla ? (
           <Badge tone={sla.tone} title={sla.title}>
             {sla.text}
           </Badge>
         ) : (
-          <span className="faint">No service level</span>
+          <span className="faint">{t("No service level")}</span>
         )}
-        <span className="faint fs-card-len" title="Planned length">
+        <span className="faint fs-card-len" title={t("Planned length")}>
           <Icon name="timeline" size={12} /> {span(minutes * MINUTE)}
         </span>
       </div>
@@ -115,15 +116,15 @@ export function Queue({
   children: ReactNode;
 }) {
   return (
-    <aside className="fs-rail" aria-label="Waiting to be scheduled">
+    <aside className="fs-rail" aria-label={t("Waiting to be scheduled")}>
       <header className="fs-rail-head">
         <h2 className="fs-rail-title">
-          Waiting <span className="faint">{filtered ? `${jobs.length} of ${total}` : total}</span>
+          {t("Waiting")} <span className="faint">{filtered ? `${jobs.length} of ${total}` : total}</span>
         </h2>
-        <input className="input fs-rail-search" type="search" placeholder="Find a job…" aria-label="Find a waiting job" value={search} onChange={(e) => onSearch(e.target.value)} />
+        <input className="input fs-rail-search" type="search" placeholder={t("Find a job…")} aria-label={t("Find a waiting job")} value={search} onChange={(e) => onSearch(e.target.value)} />
         {skills.length > 0 && (
-          <select className="select fs-rail-skill" aria-label="Jobs that need a skill" value={skill} onChange={(e) => onSkill(e.target.value)}>
-            <option value="">Any skill</option>
+          <select className="select fs-rail-skill" aria-label={t("Jobs that need a skill")} value={skill} onChange={(e) => onSkill(e.target.value)}>
+            <option value="">{t("Any skill")}</option>
             {skills.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -135,14 +136,14 @@ export function Queue({
       {jobs.length ? (
         <div className="fs-rail-list">{children}</div>
       ) : filtered ? (
-        <EmptyState title="Nothing matches" icon="search">
+        <EmptyState title={t("Nothing matches")} icon="search">
           <button type="button" className="link-btn" onClick={onClear}>
-            Show every waiting job
+            {t("Show every waiting job")}
           </button>
         </EmptyState>
       ) : (
-        <EmptyState title="Nothing waiting" icon="check">
-          <p className="muted">Every open job has a time.</p>
+        <EmptyState title={t("Nothing waiting")} icon="check">
+          <p className="muted">{t("Every open job has a time.")}</p>
         </EmptyState>
       )}
     </aside>

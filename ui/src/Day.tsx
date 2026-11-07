@@ -5,7 +5,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { api, bootstrap, todayIso } from "@ferrum/client";
+import { api, bootstrap, todayIso, t as tr } from "@ferrum/client";
 import { Alert, Badge, Button, EmptyState, ErrorState, Icon, Spinner, toast, useLiveEntity, useShellTitle } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
 import { act, loadBoard, reason } from "./api";
@@ -57,7 +57,7 @@ export function StopCard({ stop, zone, now, current, busy, onGo }: { stop: Stop;
       {job?.site_address && <p className="fs-stop-address">{job.site_address}</p>}
       {v.travel && v.travel.minutes > 0 && (
         <p className="fs-stop-travel">
-          <Icon name="timeline" size={13} /> About {span(v.travel.minutes * MINUTE)} to get there ({v.travel.km} km from {v.travel.from === "home" ? "where you start" : "your last job"})
+          <Icon name="timeline" size={13} /> {tr("About")} {span(v.travel.minutes * MINUTE)} {tr("to get there ({km} km from", { km: v.travel.km })} {v.travel.from === "home" ? "where you start" : "your last job"})
         </p>
       )}
       {job?.description && <p className="fs-stop-problem">{job.description}</p>}
@@ -65,12 +65,12 @@ export function StopCard({ stop, zone, now, current, busy, onGo }: { stop: Stop;
         <div className="fs-stop-links">
           {maps && (
             <a className="btn btn-default" href={maps} target="_blank" rel="noopener noreferrer">
-              <Icon name="external" size={15} /> Directions
+              <Icon name="external" size={15} /> {tr("Directions")}
             </a>
           )}
           {tel && (
             <a className="btn btn-default" href={tel}>
-              <Icon name="user" size={15} /> Call{job?.contact_name ? ` ${job.contact_name.split(" ")[0]}` : ""}
+              <Icon name="user" size={15} /> {tr("Call")}{job?.contact_name ? ` ${job.contact_name.split(" ")[0]}` : ""}
             </a>
           )}
         </div>
@@ -78,7 +78,7 @@ export function StopCard({ stop, zone, now, current, busy, onGo }: { stop: Stop;
       <footer className="fs-stop-foot">
         {current && step?.action === "complete" ? (
           <Link className="btn btn-primary" to={path}>
-            Finish the job
+            {tr("Finish the job")}
           </Link>
         ) : current && step ? (
           <Button variant="primary" loading={busy} onClick={() => onGo(step.action as "start_travel" | "arrive")}>
@@ -88,7 +88,7 @@ export function StopCard({ stop, zone, now, current, busy, onGo }: { stop: Stop;
           current && note && <p className="muted">{note}</p>
         )}
         <Link className="btn btn-default" to={path}>
-          Open the job
+          {tr("Open the job")}
         </Link>
       </footer>
     </article>
@@ -200,7 +200,7 @@ export function Day() {
     } catch (e) {
       if (unreachable(e) && keep()) {
         setHeld(heldSteps());
-        toast("No connection: it is sent when the connection is back.");
+        toast(tr("No connection: it is sent when the connection is back."));
       } else toast(reason(e), "error");
     } finally {
       setActing(null);
@@ -217,35 +217,35 @@ export function Day() {
   const body = q.error && !q.data ? (
     <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   ) : !q.data ? (
-    <Spinner label="Loading your day" />
+    <Spinner label={tr("Loading your day")} />
   ) : !q.data.lane ? (
-    <EmptyState title="You are not set up as a technician" icon="user">
-      <p className="muted">A service manager adds a technician with your email address, and your jobs appear here.</p>
+    <EmptyState title={tr("You are not set up as a technician")} icon="user">
+      <p className="muted">{tr("A service manager adds a technician with your email address, and your jobs appear here.")}</p>
     </EmptyState>
   ) : !arranged || !count ? (
     <EmptyState title={isToday ? "Nothing planned for today" : `Nothing planned for ${dayLabel(day)}`} icon="check">
       <button type="button" className="link-btn" onClick={() => move(1)}>
-        See {dayLabel(addDays(day, 1))}
+        {tr("See")} {dayLabel(addDays(day, 1))}
       </button>
     </EmptyState>
   ) : (
     <>
-      {arranged.now && <section aria-label="In hand">{card(arranged.now, true)}</section>}
+      {arranged.now && <section aria-label={tr("In hand")}>{card(arranged.now, true)}</section>}
       {arranged.next && (
-        <section aria-label="Next up">
-          <h2 className="fs-group">Next up</h2>
+        <section aria-label={tr("Next up")}>
+          <h2 className="fs-group">{tr("Next up")}</h2>
           {card(arranged.next, true)}
         </section>
       )}
       {arranged.later.length > 0 && (
-        <section aria-label="Later">
-          <h2 className="fs-group">Later</h2>
+        <section aria-label={tr("Later")}>
+          <h2 className="fs-group">{tr("Later")}</h2>
           <div className="fs-stops">{arranged.later.map((s) => card(s, false))}</div>
         </section>
       )}
       {arranged.done.length > 0 && (
-        <section aria-label="Done">
-          <h2 className="fs-group">Done</h2>
+        <section aria-label={tr("Done")}>
+          <h2 className="fs-group">{tr("Done")}</h2>
           <div className="fs-stops">{arranged.done.map((s) => card(s, false))}</div>
         </section>
       )}
@@ -256,7 +256,7 @@ export function Day() {
     <div className="fs-page fs-day">
       <header className="fs-head">
         <div>
-          <h1 className="sr-only">My day</h1>
+          <h1 className="sr-only">{tr("My day")}</h1>
           <Tabs />
           <p className="page-sub" aria-live="polite">
             {q.data?.lane && arranged && count
@@ -264,27 +264,27 @@ export function Day() {
               : dayLabel(day, { weekday: "long", day: "numeric", month: "long" })}
           </p>
         </div>
-        <div className="fs-daynav" role="group" aria-label="Day">
-          <button type="button" className="icon-btn" aria-label="Previous day" onClick={() => move(-1)}>
+        <div className="fs-daynav" role="group" aria-label={tr("Day")}>
+          <button type="button" className="icon-btn" aria-label={tr("Previous day")} onClick={() => move(-1)}>
             <Icon name="left" />
           </button>
           <button type="button" className="btn btn-default btn-md" onClick={() => setSp({}, { replace: true })} aria-current={isToday ? "date" : undefined}>
-            Today
+            {tr("Today")}
           </button>
-          <button type="button" className="icon-btn" aria-label="Next day" onClick={() => move(1)}>
+          <button type="button" className="icon-btn" aria-label={tr("Next day")} onClick={() => move(1)}>
             <Icon name="chevronRight" />
           </button>
         </div>
       </header>
       {q.error && q.data && <Stale error={q.error} onRetry={() => void q.refetch()} />}
       {q.data?.offline && (
-        <Alert tone="info" action={<Button size="sm" icon="refresh" onClick={() => void q.refetch()}>Try again</Button>}>
-          No connection: your day as it was at {clock(Date.parse(q.data.offline), zone)}. What you do is sent when the connection is back.
+        <Alert tone="info" action={<Button size="sm" icon="refresh" onClick={() => void q.refetch()}>{tr("Try again")}</Button>}>
+          {tr("No connection: your day as it was at")} {clock(Date.parse(q.data.offline), zone)}{tr(". What you do is sent when the connection is back.")}
         </Alert>
       )}
       {held.length > 0 && (
         <Alert tone="warning">
-          <strong>Waiting to be sent</strong>
+          <strong>{tr("Waiting to be sent")}</strong>
           <ul>
             {held.map((w) => (
               <li key={w.key}>
@@ -295,8 +295,8 @@ export function Day() {
         </Alert>
       )}
       {news.length > 0 && (
-        <Alert tone="warning" action={<Button size="sm" onClick={() => setNews([])}>Got it</Button>}>
-          <strong>Your dispatcher changed your day.</strong>
+        <Alert tone="warning" action={<Button size="sm" onClick={() => setNews([])}>{tr("Got it")}</Button>}>
+          <strong>{tr("Your dispatcher changed your day.")}</strong>
           <ul>
             {news.map((n) => (
               <li key={n}>{n}</li>

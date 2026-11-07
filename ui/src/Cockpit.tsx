@@ -6,7 +6,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useCallback, useState } from "react";
 import { Link } from "react-router";
-import { api, docPath, formatDecimal, formatDate } from "@ferrum/client";
+import { api, docPath, formatDecimal, formatDate, t as tr } from "@ferrum/client";
 import { Alert, Badge, Button, confirmDialog, Dialog, Field, Icon, PageLoading, statusTone, TabPanel, Tabs, toast, useLiveEntity } from "@ferrum/kit";
 import { can, CollabPanel, type EntityMeta, LinkTitle, RecordFields, useMetaIndex } from "@ferrum/records";
 import { reason } from "./api";
@@ -40,16 +40,16 @@ function CancelDialog({ onClose, onCancel }: { onClose: () => void; onCancel: (w
     setBusy(false);
   };
   return (
-    <Dialog open onClose={onClose} title="Cancel this work order?">
+    <Dialog open onClose={onClose} title={tr("Cancel this work order?")}>
       <form className="stack" onSubmit={submit}>
-        <p className="muted">Its open visits are cancelled and the technicians' time is freed. A cancelled work order is final: new work needs a new one.</p>
-        <Field label="Why" htmlFor="cancel-why" hint="Kept on the work order.">
+        <p className="muted">{tr("Its open visits are cancelled and the technicians' time is freed. A cancelled work order is final: new work needs a new one.")}</p>
+        <Field label={tr("Why")} htmlFor="cancel-why" hint={tr("Kept on the work order.")}>
           <textarea id="cancel-why" className="textarea" rows={3} maxLength={2000} value={why} onChange={(e) => setWhy(e.target.value)} />
         </Field>
         <div className="row" style={{ justifyContent: "flex-end" }}>
-          <Button onClick={onClose}>Keep it</Button>
+          <Button onClick={onClose}>{tr("Keep it")}</Button>
           <Button type="submit" variant="danger" loading={busy}>
-            Cancel the work order
+            {tr("Cancel the work order")}
           </Button>
         </div>
       </form>
@@ -148,7 +148,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
     const out = await v.run("create_invoice");
     setBusy(null);
     if (!out.ok) return toast(out.message ?? "That did not work.", "error");
-    toast("The invoice is made as a draft.");
+    toast(tr("The invoice is made as a draft."));
   };
   const trackingLink = async () => {
     if (!requestId) return;
@@ -158,7 +158,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
       const url = made.url ?? new URL(made.path, window.location.origin).toString();
       try {
         await navigator.clipboard.writeText(url);
-        toast("The tracking link is copied.");
+        toast(tr("The tracking link is copied."));
       } catch {
         setLink(url);
       }
@@ -171,8 +171,8 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
 
   return (
     <div className="fs-page fs-cockpit">
-      <nav className="crumbs" aria-label="Breadcrumb">
-        <Link to="/e/ServiceWorkOrder">Work orders</Link>
+      <nav className="crumbs" aria-label={tr("Breadcrumb")}>
+        <Link to="/e/ServiceWorkOrder">{tr("Work orders")}</Link>
         <Icon name="chevronRight" size={12} />
       </nav>
       <header className="fs-co-head">
@@ -194,36 +194,36 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
           )}
           {status === "Scheduled" && canWrite && (
             <Button variant="primary" loading={busy === "dispatch"} onClick={() => void act("dispatch", "Dispatched. The technician is told.")}>
-              Dispatch
+              {tr("Dispatch")}
             </Button>
           )}
           {status === "On Site" && (
             <Button variant="primary" loading={busy === "complete"} onClick={() => void complete()}>
-              Complete
+              {tr("Complete")}
             </Button>
           )}
           {status === "Completed" && !invoiceId && canInvoice && (
             <Button variant="primary" icon="file" loading={busy === "create_invoice"} onClick={() => void invoiceNow()}>
-              Create the invoice
+              {tr("Create the invoice")}
             </Button>
           )}
           {!cancelled && !submitted && canWrite && (
             <Button variant="danger" onClick={() => setCancelling(true)}>
-              Cancel
+              {tr("Cancel")}
             </Button>
           )}
           {v.switch && (
-            <Link className="icon-btn" to="?as=field" title="Open it as the technician sees it" aria-label="Open it as the technician sees it">
+            <Link className="icon-btn" to="?as=field" title={tr("Open it as the technician sees it")} aria-label={tr("Open it as the technician sees it")}>
               <Icon name="user" size={15} />
             </Link>
           )}
-          <Link className="icon-btn" to={`/e/ServiceWorkOrder/${id}`} title="Open the full form" aria-label="Open the full form">
+          <Link className="icon-btn" to={`/e/ServiceWorkOrder/${id}`} title={tr("Open the full form")} aria-label={tr("Open the full form")}>
             <Icon name="expand" size={15} />
           </Link>
         </div>
       </header>
 
-      <ol className="fs-steps" aria-label="Where the work order is">
+      <ol className="fs-steps" aria-label={tr("Where the work order is")}>
         {stages.map((s) => (
           <li key={s.name} data-state={s.state} aria-current={s.state === "current" ? "step" : undefined}>
             {s.name}
@@ -232,14 +232,14 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
       </ol>
       {cancelled && (
         <Alert tone="error">
-          Cancelled{text(doc.cancelled_at) ? ` ${stamp(Date.parse(String(doc.cancelled_at)), zone)}` : ""}
+          {tr("Cancelled")}{text(doc.cancelled_at) ? ` ${stamp(Date.parse(String(doc.cancelled_at)), zone)}` : ""}
           {text(doc.cancellation_reason) ? `: ${text(doc.cancellation_reason)}` : "."}
         </Alert>
       )}
       <Refusals list={ctx.refused} />
 
       <div className="fs-co-body">
-        <section className="fs-co-main" aria-label="The work order">
+        <section className="fs-co-main" aria-label={tr("The work order")}>
           <Tabs
             id="wo"
             tabs={[
@@ -255,9 +255,9 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
           ) : (
             <div className="fs-co-job">
               {(clocks.length > 0 || sla) && (
-                <section className="fs-card-box" aria-label="Service level">
+                <section className="fs-card-box" aria-label={tr("Service level")}>
                   <h2 className="fs-sec-h">
-                    Service level{" "}
+                    {tr("Service level")}{" "}
                     {sla && (
                       <Badge tone={sla.tone} title={sla.title}>
                         {sla.text}
@@ -275,14 +275,14 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                 </section>
               )}
 
-              <section className="fs-card-box" aria-label="Customer, site and equipment">
-                <h2 className="fs-sec-h">Customer and site</h2>
+              <section className="fs-card-box" aria-label={tr("Customer, site and equipment")}>
+                <h2 className="fs-sec-h">{tr("Customer and site")}</h2>
                 <dl className="fs-facts">
-                  <dt>Customer</dt>
+                  <dt>{tr("Customer")}</dt>
                   <dd>{text(doc.customer) ? <LinkTitle to="Customer" id={String(doc.customer)} title={titles.customer} /> : "—"}</dd>
                   {(text(doc.contact_name) || text(doc.contact_phone) || text(doc.contact_email)) && (
                     <>
-                      <dt>Contact</dt>
+                      <dt>{tr("Contact")}</dt>
                       <dd>
                         {[text(doc.contact_name), text(doc.contact_phone) && <a key="p" href={`tel:${String(doc.contact_phone).replace(/[^\d+]/g, "")}`}>{String(doc.contact_phone)}</a>, text(doc.contact_email) && <a key="e" href={`mailto:${String(doc.contact_email)}`}>{String(doc.contact_email)}</a>]
                           .filter(Boolean)
@@ -297,7 +297,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                   )}
                   {text(doc.site_address) && (
                     <>
-                      <dt>Site</dt>
+                      <dt>{tr("Site")}</dt>
                       <dd className="fs-pre">
                         {text(doc.site_address)}
                         {titles.territory ? `\n${titles.territory}` : ""}
@@ -306,10 +306,10 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                   )}
                   {equipmentId && (
                     <>
-                      <dt>Equipment</dt>
+                      <dt>{tr("Equipment")}</dt>
                       <dd>
                         <LinkTitle to="CustomerEquipment" id={equipmentId} title={titles.equipment} />
-                        {text(doc.serial_no) && <span className="faint"> · serial {text(doc.serial_no)}</span>}
+                        {text(doc.serial_no) && <span className="faint"> {tr("· serial")} {text(doc.serial_no)}</span>}
                         {equipment.data && (
                           <p className="faint">
                             {[text(equipment.data.warranty_end) && `warranty until ${formatDate(equipment.data.warranty_end)}`, text(equipment.data.last_service_date) && `last serviced ${formatDate(equipment.data.last_service_date)}`].filter(Boolean).join(" · ")}
@@ -320,35 +320,35 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                   )}
                   {text(doc.description) && (
                     <>
-                      <dt>Problem</dt>
+                      <dt>{tr("Problem")}</dt>
                       <dd className="fs-pre">{text(doc.description)}</dd>
                     </>
                   )}
                   {Array.isArray(doc.required_skills) && doc.required_skills.length > 0 && (
                     <>
-                      <dt>Needs</dt>
+                      <dt>{tr("Needs")}</dt>
                       <dd>{(doc.required_skills as { skill?: string; _titles?: Record<string, string> }[]).map((r) => r._titles?.skill ?? r.skill).join(", ")}</dd>
                     </>
                   )}
                 </dl>
                 <div className="fs-badges">
-                  {doc.under_warranty === true && <Badge tone="blue">Under warranty</Badge>}
+                  {doc.under_warranty === true && <Badge tone="blue">{tr("Under warranty")}</Badge>}
                   {text(doc.service_contract) && (
                     <Badge tone="purple">
-                      <Link to={`/e/ServiceContract/${String(doc.service_contract)}`}>Contract {titles.service_contract ?? ""}</Link>
+                      <Link to={`/e/ServiceContract/${String(doc.service_contract)}`}>{tr("Contract")} {titles.service_contract ?? ""}</Link>
                     </Badge>
                   )}
-                  {doc.parts_covered === true && <Badge tone="green">Parts are free</Badge>}
-                  {doc.labour_covered === true && <Badge tone="green">Labour is free</Badge>}
+                  {doc.parts_covered === true && <Badge tone="green">{tr("Parts are free")}</Badge>}
+                  {doc.labour_covered === true && <Badge tone="green">{tr("Labour is free")}</Badge>}
                 </div>
               </section>
 
-              <section className="fs-card-box" aria-label="Visits">
-                <h2 className="fs-sec-h">Visits</h2>
+              <section className="fs-card-box" aria-label={tr("Visits")}>
+                <h2 className="fs-sec-h">{tr("Visits")}</h2>
                 {visits.isPending ? (
-                  <PageLoading label="Loading the visits" />
+                  <PageLoading label={tr("Loading the visits")} />
                 ) : visits.error ? (
-                  <p className="muted">The visits could not be loaded.</p>
+                  <p className="muted">{tr("The visits could not be loaded.")}</p>
                 ) : visits.data.length ? (
                   <ul className="fs-visits">
                     {visits.data.map((a) => (
@@ -362,7 +362,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                         </span>
                         {a.actual_start && (
                           <span className="faint">
-                            on site {clock(Date.parse(a.actual_start), zone)}
+                            {tr("on site")} {clock(Date.parse(a.actual_start), zone)}
                             {a.actual_end ? `–${clock(Date.parse(a.actual_end), zone)}` : ""}
                           </span>
                         )}
@@ -370,12 +370,12 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                     ))}
                   </ul>
                 ) : (
-                  <p className="muted">Not scheduled yet.</p>
+                  <p className="muted">{tr("Not scheduled yet.")}</p>
                 )}
                 {Array.isArray(doc.crew) && doc.crew.length > 0 && (
-                  <p className="muted">Crew: {(doc.crew as { technician_name?: string }[]).map((c) => c.technician_name).filter(Boolean).join(", ")}</p>
+                  <p className="muted">{tr("Crew:")} {(doc.crew as { technician_name?: string }[]).map((c) => c.technician_name).filter(Boolean).join(", ")}</p>
                 )}
-                <ol className="fs-history" aria-label="What happened">
+                <ol className="fs-history" aria-label={tr("What happened")}>
                   {events.map((e) => (
                     <li key={e.text + e.at}>
                       <time className="faint">{stamp(e.at, zone)}</time> {e.text}
@@ -391,21 +391,21 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
               <Expenses ctx={ctx} />
               <Signoff ctx={ctx} />
 
-              <section className="fs-card-box" aria-label="Cost against billable">
-                <h2 className="fs-sec-h">Cost and bill</h2>
+              <section className="fs-card-box" aria-label={tr("Cost against billable")}>
+                <h2 className="fs-sec-h">{tr("Cost and bill")}</h2>
                 <div className="fs-money">
                   <dl className="fs-facts">
-                    <dt>Billable time</dt>
-                    <dd>{hoursText(doc.billable_hours as string)} h of {hoursText(doc.labour_hours as string)} h{doc.labour_covered === true ? " (free: covered)" : ""}</dd>
-                    <dt>Expenses</dt>
+                    <dt>{tr("Billable time")}</dt>
+                    <dd>{hoursText(doc.billable_hours as string)} {tr("h of")} {hoursText(doc.labour_hours as string)} h{doc.labour_covered === true ? " (free: covered)" : ""}</dd>
+                    <dt>{tr("Expenses")}</dt>
                     <dd>{formatDecimal(money.expenses, 2)}</dd>
                     {money.cost != null && (
                       <>
-                        <dt>Labour cost</dt>
+                        <dt>{tr("Labour cost")}</dt>
                         <dd>{formatDecimal(money.labour ?? 0, 2)}</dd>
-                        <dt>Parts cost</dt>
+                        <dt>{tr("Parts cost")}</dt>
                         <dd>{formatDecimal(money.parts ?? 0, 2)}</dd>
-                        <dt>It cost</dt>
+                        <dt>{tr("It cost")}</dt>
                         <dd>
                           <strong>{formatDecimal(money.cost, 2)}</strong>
                         </dd>
@@ -413,7 +413,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                     )}
                     {billedTotal != null && (
                       <>
-                        <dt>Billed</dt>
+                        <dt>{tr("Billed")}</dt>
                         <dd>
                           <strong>{formatDecimal(billedTotal, 2)}</strong>
                         </dd>
@@ -421,20 +421,20 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                     )}
                     {difference != null && (
                       <>
-                        <dt>Difference</dt>
+                        <dt>{tr("Difference")}</dt>
                         <dd data-negative={difference.startsWith("-") || undefined}>{formatDecimal(difference, 2)}</dd>
                       </>
                     )}
                   </dl>
                 </div>
-                {money.cost == null && <p className="faint">Costs are only shown to those who may see them.</p>}
+                {money.cost == null && <p className="faint">{tr("Costs are only shown to those who may see them.")}</p>}
               </section>
 
-              <section className="fs-card-box" aria-label="Invoice">
-                <h2 className="fs-sec-h">Invoice</h2>
+              <section className="fs-card-box" aria-label={tr("Invoice")}>
+                <h2 className="fs-sec-h">{tr("Invoice")}</h2>
                 {invoiceId ? (
                   invoice.isPending ? (
-                    <PageLoading label="Loading the invoice" />
+                    <PageLoading label={tr("Loading the invoice")} />
                   ) : (
                     <>
                       <p>
@@ -446,17 +446,17 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                         <table className="table fs-invoice">
                           <thead>
                             <tr>
-                              <th>What</th>
-                              <th className="num">Qty</th>
-                              <th className="num">Rate</th>
-                              <th className="num">Amount</th>
+                              <th>{tr("What")}</th>
+                              <th className="num">{tr("Qty")}</th>
+                              <th className="num">{tr("Rate")}</th>
+                              <th className="num">{tr("Amount")}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {lines.map((l, i) => (
                               <tr key={i} data-free={l.free || undefined}>
                                 <td>
-                                  {l.text} {l.free && <Badge tone="green">Covered</Badge>}
+                                  {l.text} {l.free && <Badge tone="green">{tr("Covered")}</Badge>}
                                 </td>
                                 <td className="num">{formatDecimal(l.qty)}</td>
                                 <td className="num">{formatDecimal(l.rate, 2)}</td>
@@ -467,7 +467,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                           {text(invoice.data?.grand_total) && (
                             <tfoot>
                               <tr>
-                                <td colSpan={3}>Total</td>
+                                <td colSpan={3}>{tr("Total")}</td>
                                 <td className="num">{formatDecimal(invoice.data?.grand_total, 2)}</td>
                               </tr>
                             </tfoot>
@@ -475,14 +475,14 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                         </table>
                         </div>
                       ) : invoice.error ? (
-                        <p className="muted">The invoice's lines are not yours to see.</p>
+                        <p className="muted">{tr("The invoice's lines are not yours to see.")}</p>
                       ) : null}
                     </>
                   )
                 ) : status === "Completed" ? (
-                  <p className="muted">Not invoiced yet. The invoice is made once, with warranty and contract cover as a full discount.</p>
+                  <p className="muted">{tr("Not invoiced yet. The invoice is made once, with warranty and contract cover as a full discount.")}</p>
                 ) : (
-                  <p className="muted">It is invoiced once the work is completed.</p>
+                  <p className="muted">{tr("It is invoiced once the work is completed.")}</p>
                 )}
               </section>
             </div>
@@ -490,22 +490,22 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
           </TabPanel>
         </section>
 
-        <aside className="fs-co-side" aria-label="Details">
+        <aside className="fs-co-side" aria-label={tr("Details")}>
           <RecordFields meta={meta} doc={doc} save={(n, val) => ctx.save({ [n]: val }).then(() => undefined)} only={["Job", "Contact", "Planning"]} />
           {requestId && (
             <div className="fs-side-box">
-              <h3>Customer tracking</h3>
+              <h3>{tr("Customer tracking")}</h3>
               <Button size="sm" icon="copy" loading={busy === "track"} onClick={() => void trackingLink()}>
-                Copy the tracking link
+                {tr("Copy the tracking link")}
               </Button>
-              {link && <input className="input" readOnly aria-label="Tracking link" value={link} onFocus={(e) => e.currentTarget.select()} />}
+              {link && <input className="input" readOnly aria-label={tr("Tracking link")} value={link} onFocus={(e) => e.currentTarget.select()} />}
             </div>
           )}
           {equipmentId && (
             <div className="fs-side-box">
-              <h3>Earlier jobs on this equipment</h3>
+              <h3>{tr("Earlier jobs on this equipment")}</h3>
               {earlier.isPending ? (
-                <PageLoading label="Loading" />
+                <PageLoading label={tr("Loading")} />
               ) : earlier.data?.length ? (
                 <ul className="fs-earlier">
                   {earlier.data.map((e) => (
@@ -519,7 +519,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                   ))}
                 </ul>
               ) : (
-                <p className="muted">None. This is its first job.</p>
+                <p className="muted">{tr("None. This is its first job.")}</p>
               )}
             </div>
           )}

@@ -5,7 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
-import { api, docPath } from "@ferrum/client";
+import { api, docPath, t } from "@ferrum/client";
 import { Alert, Badge, Button, Icon, Spinner } from "@ferrum/kit";
 import type { Doc } from "@ferrum/records";
 import { suggest, type Suggestion } from "./api";
@@ -70,22 +70,22 @@ function Plan({
       <h3 className="fs-drawer-h">{mode === "job" ? "Who can take it" : "Move it to"}</h3>
       <div className="fs-plan-when">
         <label>
-          <span className="field-label">Starts</span>
+          <span className="field-label">{t("Starts")}</span>
           <input className="input" type="datetime-local" step={STEP * 60} value={when} onChange={(e) => setWhen(e.target.value)} />
         </label>
         <label>
-          <span className="field-label">Minutes</span>
+          <span className="field-label">{t("Minutes")}</span>
           <input className="input" type="number" min={STEP} step={STEP} value={length} onChange={(e) => setLength(Number(e.target.value))} />
         </label>
       </div>
       {end == null ? (
-        <p className="muted">Choose a start and how long it takes.</p>
+        <p className="muted">{t("Choose a start and how long it takes.")}</p>
       ) : ranked.error ? (
         <Alert tone="error">{ranked.error instanceof Error ? ranked.error.message : "The ranking could not be loaded."}</Alert>
       ) : !ranked.data ? (
-        <Spinner label="Ranking the technicians" />
+        <Spinner label={t("Ranking the technicians")} />
       ) : !ranked.data.technicians.length ? (
-        <p className="muted">There are no technicians to rank.</p>
+        <p className="muted">{t("There are no technicians to rank.")}</p>
       ) : (
         <ul className="fs-suggest">
           {ranked.data.technicians.map((s) => {
@@ -106,16 +106,16 @@ function Plan({
                       {s.eligible ? "Assign" : "Assign anyway"}
                     </Button>
                   ) : on ? (
-                    <Button size="sm" disabled={busy} onClick={() => onPick(s, slot, false)} title="Keep them on the visit, at this time">
-                      Keep
+                    <Button size="sm" disabled={busy} onClick={() => onPick(s, slot, false)} title={t("Keep them on the visit, at this time")}>
+                      {t("Keep")}
                     </Button>
                   ) : (
                     <>
-                      <Button size="sm" variant={s.eligible ? "primary" : "default"} disabled={busy} onClick={() => onPick(s, slot, false)} title="Give the visit to this technician">
-                        Move here
+                      <Button size="sm" variant={s.eligible ? "primary" : "default"} disabled={busy} onClick={() => onPick(s, slot, false)} title={t("Give the visit to this technician")}>
+                        {t("Move here")}
                       </Button>
-                      <Button size="sm" disabled={busy} onClick={() => onPick(s, slot, true)} title="Add this technician to the visit">
-                        Add
+                      <Button size="sm" disabled={busy} onClick={() => onPick(s, slot, true)} title={t("Add this technician to the visit")}>
+                        {t("Add")}
                       </Button>
                     </>
                   )}
@@ -207,7 +207,7 @@ export function Drawer({
           </Link>
           <p className="muted">{customer}</p>
         </div>
-        <button type="button" className="icon-btn" aria-label="Close" title="Close (Esc)" onClick={onClose}>
+        <button type="button" className="icon-btn" aria-label={t("Close")} title={t("Close (Esc)")} onClick={onClose}>
           <Icon name="x" />
         </button>
       </header>
@@ -224,25 +224,25 @@ export function Drawer({
         </div>
 
         {visit && (
-          <section className="fs-visit" aria-label="The visit">
-            <h3 className="fs-drawer-h">Visit</h3>
+          <section className="fs-visit" aria-label={t("The visit")}>
+            <h3 className="fs-drawer-h">{t("Visit")}</h3>
             <p>
               <strong>{stamp(Date.parse(visit.start), zone)}</strong>–{clock(Date.parse(visit.end), zone)} <span className="faint">({span(minutes * MINUTE)})</span>
             </p>
             <p className="muted">{crew.map((l) => l.technician_name).join(", ")}</p>
             {visit.status === "Scheduled" ? (
-              <Alert tone="warning">Planned, not sent. Dispatching tells the technician, and the customer if they have an email on file.</Alert>
+              <Alert tone="warning">{t("Planned, not sent. Dispatching tells the technician, and the customer if they have an email on file.")}</Alert>
             ) : (
               <p>
                 <Badge tone={tone(visit.status)}>{visit.status}</Badge>
               </p>
             )}
-            {!isMovable(visit) && visit.status !== "Completed" && visit.status !== "Cannot Complete" && <p className="muted">The technician has this one: it can no longer be moved.</p>}
+            {!isMovable(visit) && visit.status !== "Completed" && visit.status !== "Cannot Complete" && <p className="muted">{t("The technician has this one: it can no longer be moved.")}</p>}
             {canPlan && (
               <div className="fs-visit-actions">
                 {visit.status === "Scheduled" && (
                   <Button variant="primary" loading={busy} onClick={() => void run(() => ops.dispatch(visit))}>
-                    Dispatch
+                    {t("Dispatch")}
                   </Button>
                 )}
                 {isMovable(visit) && (
@@ -252,7 +252,7 @@ export function Drawer({
                 )}
                 {["Scheduled", "Dispatched", "En Route"].includes(visit.status) && (
                   <Button variant="danger" disabled={busy} onClick={() => void run(() => ops.cancel(visit))}>
-                    Cancel visit
+                    {t("Cancel visit")}
                   </Button>
                 )}
               </div>
@@ -263,13 +263,13 @@ export function Drawer({
         <dl className="fs-facts">
           {address && (
             <>
-              <dt>Where</dt>
+              <dt>{t("Where")}</dt>
               <dd className="fs-pre">{address}</dd>
             </>
           )}
           {(contact || phone) && (
             <>
-              <dt>Contact</dt>
+              <dt>{t("Contact")}</dt>
               <dd>
                 {contact}
                 {contact && phone ? " · " : ""}
@@ -279,37 +279,37 @@ export function Drawer({
           )}
           {equipment && (
             <>
-              <dt>Equipment</dt>
+              <dt>{t("Equipment")}</dt>
               <dd>{equipment}</dd>
             </>
           )}
           {skills.length > 0 && (
             <>
-              <dt>Needs</dt>
+              <dt>{t("Needs")}</dt>
               <dd>{skills.join(", ")}</dd>
             </>
           )}
           {job && (
             <>
-              <dt>Planned</dt>
+              <dt>{t("Planned")}</dt>
               <dd>{span(lengthOf(job) * MINUTE)}</dd>
             </>
           )}
           {job?.preferred_start && (
             <>
-              <dt>Customer asked for</dt>
+              <dt>{t("Customer asked for")}</dt>
               <dd>{stamp(Date.parse(job.preferred_start), zone)}</dd>
             </>
           )}
           {description && (
             <>
-              <dt>Problem</dt>
+              <dt>{t("Problem")}</dt>
               <dd className="fs-pre fs-clamp">{description}</dd>
             </>
           )}
         </dl>
-        {record.isError && <p className="muted">The job's details could not be loaded.</p>}
-        {record.isPending && <Spinner label="Loading the job" />}
+        {record.isError && <p className="muted">{t("The job's details could not be loaded.")}</p>}
+        {record.isPending && <Spinner label={t("Loading the job")} />}
 
         {error && <Alert tone="error">{error}</Alert>}
 
@@ -343,7 +343,7 @@ export function Drawer({
             }}
           />
         )}
-        {!job && !visit && <p className="muted">This job is not on this day's board. Open it to see where it stands.</p>}
+        {!job && !visit && <p className="muted">{t("This job is not on this day's board. Open it to see where it stands.")}</p>}
       </div>
     </aside>
   );
