@@ -213,16 +213,16 @@ export function Dispatch() {
   const between = (s: Slot) => `${clock(s.start, zone)}–${clock(s.end, zone)}`;
 
   const assign: DrawerOps["assign"] = (job, lane, slot) =>
-    attempt(lane, (b) => withJobScheduled(b, job.work_order, lane, slot.start, slot.end), () => scheduleJob(job.work_order, [lane], slot.start, slot.end), `${job.number} is with ${laneName(lane)}, ${between(slot)}. Dispatch it to tell them.`);
+    attempt(lane, (b) => withJobScheduled(b, job.work_order, lane, slot.start, slot.end), () => scheduleJob(job.work_order, [lane], slot.start, slot.end), tr("{number} is with {lane}, {slot}. Dispatch it to tell them.", { number: job.number, lane: laneName(lane), slot: between(slot) }));
   const relocate: DrawerOps["relocate"] = (visit, from, to, slot, add) =>
     attempt(
       to,
       (b) => withVisitMoved(b, visit.appointment, { technician: to, from, start: slot.start, end: slot.end, add }),
       () => moveVisit(visit.appointment, { ...slot, swap: { from, to, add } }),
-      `${visit.work_order_number} ${add ? `now includes ${laneName(to)}` : `is with ${laneName(to)}`}, ${between(slot)}.${visit.status === "Dispatched" ? " It needs dispatching again." : ""}`,
+      `${visit.work_order_number} ${add ? tr("now includes {to}", { to: laneName(to) }) : tr("is with {to}", { to: laneName(to) })}, ${between(slot)}.${visit.status === "Dispatched" ? " It needs dispatching again." : ""}`,
     );
   const dispatch: DrawerOps["dispatch"] = (visit) =>
-    attempt(null, (b) => withVisitStatus(b, visit.appointment, "Dispatched"), () => dispatchJob(visit.work_order), `${visit.work_order_number} is dispatched.`);
+    attempt(null, (b) => withVisitStatus(b, visit.appointment, "Dispatched"), () => dispatchJob(visit.work_order), tr("{work_order_number} is dispatched.", { work_order_number: visit.work_order_number }));
   const cancel: DrawerOps["cancel"] = async (visit) => {
     const ok = await confirmDialog({
       title: tr("Cancel the visit for {value}?", { value: visit.customer_name || visit.work_order_number }),
@@ -232,7 +232,7 @@ export function Dispatch() {
       danger: true,
     });
     if (!ok) return null;
-    return attempt(null, (b) => withVisitStatus(b, visit.appointment, null), () => cancelVisit(visit.appointment), `The visit for ${visit.work_order_number} is cancelled.`);
+    return attempt(null, (b) => withVisitStatus(b, visit.appointment, null), () => cancelVisit(visit.appointment), tr("The visit for {work_order_number} is cancelled.", { work_order_number: visit.work_order_number }));
   };
   const drawerOps: DrawerOps = { assign, relocate, dispatch, cancel };
 

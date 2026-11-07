@@ -1,3 +1,4 @@
+import { t as tr } from "@ferrum/client";
 // Time in a named zone, without a library. The server sends instants (UTC); the board draws them
 // as the workspace's clock reads, and the date and time fields a dispatcher types are wall times
 // in that zone, not in the browser's. Pure, so the daylight-saving edges are tested.
@@ -155,11 +156,11 @@ export function fromWallInput(value: string, zone: string): number | null {
 /** A length of time in the words a dispatcher uses: "25 min", "1 h 30 min", "2 days". */
 export function span(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / MINUTE));
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return tr("{minutes} min", { minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours >= 48) return `${Math.floor(hours / 24)} days`;
+  if (hours >= 48) return tr("{n} days", { n: Math.floor(hours / 24) });
   const rest = minutes % 60;
-  return rest ? `${hours} h ${rest} min` : `${hours} h`;
+  return rest ? tr("{hours} h {rest} min", { hours, rest }) : `${hours} h`;
 }
 
 /** Rounds minutes to the nearest step (the board snaps to quarter hours). */

@@ -58,7 +58,7 @@ function Block({ p, lane, axis, perMin, selected, held, tab, ops }: { p: Placed;
   const [a, z] = edge ? [edge.start, edge.end] : [Date.parse(v.start), Date.parse(v.end)];
   const when = `${clock(a, axis.zone)}–${clock(z, axis.zone)}`;
   const tag = TAG[v.status];
-  const late = p.late > 0 && p.travel ? `The drive from ${p.travel.origin} takes ${p.travel.minutes} min, but only ${p.travel.minutes - p.late} min are left after that job` : "";
+  const late = p.late > 0 && p.travel ? tr("The drive from {origin} takes {minutes} min, but only {value} min are left after that job", { origin: p.travel.origin, minutes: p.travel.minutes, value: p.travel.minutes - p.late }) : "";
 
   // An edge is pulled with the pointer (a drag of the block itself is the browser's own).
   const grip = (side: "start" | "end") => (e: ReactPointerEvent<HTMLSpanElement>) => {
