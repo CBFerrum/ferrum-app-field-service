@@ -4,7 +4,7 @@
 // uploaded first, then named on the job.
 
 import type { QueryClient } from "@tanstack/react-query";
-import { api, docPath, uploadFile } from "@ferrum/client";
+import { api, docPath, uploadFile, t } from "@ferrum/client";
 import { toast } from "@ferrum/kit";
 import { act, reason } from "./api";
 import { blobStore, patchFor, send, type Sent, type Waiting, waiting } from "./offline";
@@ -56,9 +56,9 @@ export function flush(qc: QueryClient): Promise<Sent> {
   if (!waiting().length) return Promise.resolve({ sent: [], refused: [], dropped: [] });
   running = send(perform, reason, undefined, blobStore())
     .then((out) => {
-      if (out.sent.length) toast(`Sent what you did offline: ${out.sent.map((w) => w.label).join(", ")}.`);
+      if (out.sent.length) toast(t("Sent what you did offline: {value}.", { value: out.sent.map((w) => w.label).join(", ") }));
       for (const r of out.refused) toast(`${r.step.label}: ${r.reason}`, "error");
-      if (out.dropped.length) toast(`Not completed, as something before it was refused: ${out.dropped.map((w) => w.label).join(", ")}. Put it right, then complete the job again.`, "error");
+      if (out.dropped.length) toast(t("Not completed, as something before it was refused: {value}. Put it right, then complete the job again.", { value: out.dropped.map((w) => w.label).join(", ") }), "error");
       if (out.sent.length || out.refused.length || out.dropped.length) void qc.invalidateQueries({ queryKey: ["fs"] });
       return out;
     })

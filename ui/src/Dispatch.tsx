@@ -7,7 +7,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type KeyboardEvent, type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { api, todayIso, t as tr } from "@ferrum/client";
+import { api, todayIso, t as tr, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, confirmDialog, EmptyState, ErrorState, Icon, Spinner, toast, useDebounced, useLiveEntity, useShellTitle } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
 import { cancelVisit, dispatchJob, loadBoard, moveVisit, reason, scheduleJob, type Suggestion, suggest } from "./api";
@@ -55,22 +55,22 @@ function DropTip({ board, hover, held, verdict, waiting, tip }: { board: Board; 
   return (
     <div className="fs-tip" ref={tip} role="status">
       <strong>
-        {hover.add ? "Add " : ""}
-        {lane?.technician_name ?? "Technician"} · {clock(hover.start, board.time_zone)}–{clock(hover.end, board.time_zone)}
+        {hover.add ? tr("Add ") : ""}
+        {lane?.technician_name ?? tr("Technician")} · {isolate(clock(hover.start, board.time_zone))}–{isolate(clock(hover.end, board.time_zone))}
       </strong>
       {verdict ? (
         <>
           <div className="fs-tip-score">
-            <Badge tone={!verdict.eligible ? "red" : verdict.score >= 70 ? "green" : verdict.score >= 40 ? "amber" : "neutral"}>{verdict.eligible ? `Score ${verdict.score}` : "Cannot take it"}</Badge>
+            <Badge tone={!verdict.eligible ? "red" : verdict.score >= 70 ? "green" : verdict.score >= 40 ? "amber" : "neutral"}>{verdict.eligible ? tr("Score {score}", { score: verdict.score }) : tr("Cannot take it")}</Badge>
           </div>
           <ul>
             {verdict.reasons.map((r) => (
-              <li key={r}>{r}</li>
+              <li key={r}>{isolate(r)}</li>
             ))}
           </ul>
         </>
       ) : (
-        <p className="faint">{waiting ? "Checking…" : "Hold still to see how well they fit."}</p>
+        <p className="faint">{waiting ? tr("Checking…") : tr("Hold still to see how well they fit.")}</p>
       )}
       {held.kind === "visit" && !hover.add && <p className="faint">{tr("Hold Alt to add the technician instead of moving.")}</p>}
     </div>
@@ -78,7 +78,7 @@ function DropTip({ board, hover, held, verdict, waiting, tip }: { board: Board; 
 }
 
 export function Dispatch() {
-  useShellTitle("Dispatch");
+  useShellTitle(tr("Dispatch"));
   const qc = useQueryClient();
   const me = useMe().data;
   const [sp, setSp] = useSearchParams();
@@ -225,10 +225,10 @@ export function Dispatch() {
     attempt(null, (b) => withVisitStatus(b, visit.appointment, "Dispatched"), () => dispatchJob(visit.work_order), `${visit.work_order_number} is dispatched.`);
   const cancel: DrawerOps["cancel"] = async (visit) => {
     const ok = await confirmDialog({
-      title: `Cancel the visit for ${visit.customer_name || visit.work_order_number}?`,
-      message: "The technician's time is freed and the job goes back to waiting. Technicians who had it are told.",
-      confirmLabel: "Cancel visit",
-      cancelLabel: "Keep it",
+      title: tr("Cancel the visit for {value}?", { value: visit.customer_name || visit.work_order_number }),
+      message: tr("The technician's time is freed and the job goes back to waiting. Technicians who had it are told."),
+      confirmLabel: tr("Cancel visit"),
+      cancelLabel: tr("Keep it"),
       danger: true,
     });
     if (!ok) return null;
@@ -240,9 +240,9 @@ export function Dispatch() {
     if (!toSend.length || sending) return;
     const n = toSend.length;
     const ok = await confirmDialog({
-      title: `Dispatch ${n} ${n === 1 ? "visit" : "visits"}?`,
-      message: "Each technician is told. Customers with an email on file get their visit window.",
-      confirmLabel: "Dispatch",
+      title: tr("Dispatch {n} {value}?", { n, value: n === 1 ? "visit" : "visits" }),
+      message: tr("Each technician is told. Customers with an email on file get their visit window."),
+      confirmLabel: tr("Dispatch"),
     });
     if (!ok) return;
     setSending(true);
@@ -259,8 +259,8 @@ export function Dispatch() {
     }
     setSending(false);
     settle();
-    if (failed.length) toast(`Dispatched ${done} of ${n}. ${failed[0]}${failed.length > 1 ? ` (${failed.length - 1} more were refused)` : ""}`, "error");
-    else toast(`Dispatched ${done} ${done === 1 ? "visit" : "visits"}.`);
+    if (failed.length) toast(tr("Dispatched {done} of {n}. {value}{value2}", { done, n, value: failed[0], value2: failed.length > 1 ? ` (${failed.length - 1} more were refused)` : "" }), "error");
+    else toast(tr("Dispatched {done} {value}.", { done, value: done === 1 ? "visit" : "visits" }));
   };
 
   // ── the pointer ──
@@ -343,7 +343,7 @@ export function Dispatch() {
     if (!canPlan || !board || !axis || working.has(job.work_order)) return;
     const slots = candidateSlots(job, workday(board.technicians, axis), now);
     if (!slots.length) {
-      toast(`There is no time left on ${dayLabel(day)} for ${job.number}. Choose another day.`, "error");
+      toast(tr("There is no time left on {day} for {number}. Choose another day.", { day: dayLabel(day), number: job.number }), "error");
       return;
     }
     setWorking((w) => new Set(w).add(job.work_order));
@@ -355,7 +355,7 @@ export function Dispatch() {
           return;
         }
       }
-      toast(`No technician can take ${job.number} on ${dayLabel(day)}. Choose one from the list.`, "error");
+      toast(tr("No technician can take {number} on {day}. Choose one from the list.", { number: job.number, day: dayLabel(day) }), "error");
       select(job.work_order);
     } catch (e) {
       toast(reason(e), "error");
@@ -468,12 +468,12 @@ export function Dispatch() {
               <summary>{tr("Keyboard and touch")}</summary>
               <p>
                 {tr("Arrow keys move between jobs, Enter opens one. On a waiting job, S schedules it to the best technician; on a block, M moves it and D dispatches it. Drag with a mouse; on a touch screen or without one, choose a job and use its drawer.")}
-                {canPlan ? " Hold Alt while dropping a visit to add the technician instead of moving it." : ""}
+                {canPlan ? tr(" Hold Alt while dropping a visit to add the technician instead of moving it.") : ""}
               </p>
             </details>
           </>
         ) : (
-          <EmptyState title={territory ? "No technicians in this territory" : "No technicians yet"} icon="user">
+          <EmptyState title={territory ? tr("No technicians in this territory") : tr("No technicians yet")} icon="user">
             {territory ? (
               <button type="button" className="link-btn" onClick={() => set({ territory: null })}>
                 {tr("Show every territory")}
@@ -508,7 +508,7 @@ export function Dispatch() {
           <h1 className="sr-only">{tr("Dispatch")}</h1>
           <Tabs />
           <p className="page-sub" aria-live="polite">
-            {board ? `${week ? `Week of ${dayLabel(first, { day: "numeric", month: "long" })}` : dayLabel(day, { weekday: "long", day: "numeric", month: "long" })} · ${lanes.length} ${lanes.length === 1 ? "technician" : "technicians"} · ${board.unscheduled.length} waiting${booked ? ` · ${Math.round(booked * 10) / 10} h booked` : ""}` : " "}
+            {board ? tr("{value} · {length} {value2} · {length2} waiting{value3}", { value: week ? `Week of ${dayLabel(first, { day: "numeric", month: "long" })}` : dayLabel(day, { weekday: "long", day: "numeric", month: "long" }), length: lanes.length, value2: lanes.length === 1 ? "technician" : "technicians", length2: board.unscheduled.length, value3: booked ? ` · ${Math.round(booked * 10) / 10} h booked` : "" }) : " "}
           </p>
         </div>
         <div className="fs-tools">
@@ -520,14 +520,14 @@ export function Dispatch() {
               {tr("Week")}
             </button>
           </div>
-          <div className="fs-daynav" role="group" aria-label={week ? "Week" : "Day"}>
-            <button type="button" className="icon-btn" aria-label={week ? "Previous week" : "Previous day"} onClick={() => set({ day: addDays(day, week ? -7 : -1) })}>
+          <div className="fs-daynav" role="group" aria-label={week ? tr("Week") : tr("Day")}>
+            <button type="button" className="icon-btn" aria-label={week ? tr("Previous week") : tr("Previous day")} onClick={() => set({ day: addDays(day, week ? -7 : -1) })}>
               <Icon name="left" />
             </button>
             <button type="button" className="btn btn-default btn-md" onClick={() => set({ day: null })} aria-current={isToday ? "date" : undefined}>
               {tr("Today")}
             </button>
-            <button type="button" className="icon-btn" aria-label={week ? "Next week" : "Next day"} onClick={() => set({ day: addDays(day, week ? 7 : 1) })}>
+            <button type="button" className="icon-btn" aria-label={week ? tr("Next week") : tr("Next day")} onClick={() => set({ day: addDays(day, week ? 7 : 1) })}>
               <Icon name="chevronRight" />
             </button>
             <input className="input fs-date" type="date" aria-label={tr("Day")} value={day} onChange={(e) => isDay(e.target.value) && set({ day: e.target.value === todayIso() ? null : e.target.value })} />
@@ -537,7 +537,7 @@ export function Dispatch() {
               <option value="">{tr("All territories")}</option>
               {territories.data!.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.territory_name}
+                  {isolate(t.territory_name)}
                 </option>
               ))}
             </select>

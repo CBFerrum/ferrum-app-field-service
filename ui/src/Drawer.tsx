@@ -5,7 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
-import { api, docPath, t } from "@ferrum/client";
+import { api, docPath, t, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, Icon, Spinner } from "@ferrum/kit";
 import type { Doc } from "@ferrum/records";
 import { suggest, type Suggestion } from "./api";
@@ -29,8 +29,8 @@ const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : nul
 function Score({ s }: { s: Suggestion }) {
   const tone = !s.eligible ? "red" : s.score >= 70 ? "green" : s.score >= 40 ? "amber" : "neutral";
   return (
-    <Badge tone={tone} title={s.eligible ? `Score ${s.score} of 100` : "Cannot take it at this time"}>
-      {s.eligible ? s.score : "Can't"}
+    <Badge tone={tone} title={s.eligible ? t("Score {score} of 100", { score: s.score }) : t("Cannot take it at this time")}>
+      {s.eligible ? s.score : t("Can't")}
     </Badge>
   );
 }
@@ -66,8 +66,8 @@ function Plan({
     queryFn: ({ signal }) => suggest(workOrder, start!, end!, signal),
   });
   return (
-    <section className="fs-plan" aria-label={mode === "job" ? "Schedule this job" : "Move this visit"}>
-      <h3 className="fs-drawer-h">{mode === "job" ? "Who can take it" : "Move it to"}</h3>
+    <section className="fs-plan" aria-label={mode === "job" ? t("Schedule this job") : t("Move this visit")}>
+      <h3 className="fs-drawer-h">{mode === "job" ? t("Who can take it") : t("Move it to")}</h3>
       <div className="fs-plan-when">
         <label>
           <span className="field-label">{t("Starts")}</span>
@@ -81,7 +81,7 @@ function Plan({
       {end == null ? (
         <p className="muted">{t("Choose a start and how long it takes.")}</p>
       ) : ranked.error ? (
-        <Alert tone="error">{ranked.error instanceof Error ? ranked.error.message : "The ranking could not be loaded."}</Alert>
+        <Alert tone="error">{ranked.error instanceof Error ? ranked.error.message : t("The ranking could not be loaded.")}</Alert>
       ) : !ranked.data ? (
         <Spinner label={t("Ranking the technicians")} />
       ) : !ranked.data.technicians.length ? (
@@ -95,15 +95,15 @@ function Plan({
               <li key={s.technician} data-eligible={s.eligible || undefined}>
                 <div className="fs-suggest-main">
                   <div className="fs-suggest-name">
-                    <strong>{s.technician_name}</strong>
+                    <strong>{isolate(s.technician_name)}</strong>
                     <Score s={s} />
                   </div>
-                  <p className="faint">{s.reasons.join(" · ")}</p>
+                  <p className="faint">{isolate(s.reasons.join(" · "))}</p>
                 </div>
                 <div className="fs-suggest-act">
                   {mode === "job" ? (
                     <Button size="sm" variant={s.eligible ? "primary" : "default"} disabled={busy} onClick={() => onPick(s, slot, false)}>
-                      {s.eligible ? "Assign" : "Assign anyway"}
+                      {s.eligible ? t("Assign") : t("Assign anyway")}
                     </Button>
                   ) : on ? (
                     <Button size="sm" disabled={busy} onClick={() => onPick(s, slot, false)} title={t("Keep them on the visit, at this time")}>
@@ -203,9 +203,9 @@ export function Drawer({
       <header className="fs-drawer-head">
         <div>
           <Link className="fs-drawer-title" to={`/w/${workOrder}`}>
-            {number}
+            {isolate(number)}
           </Link>
-          <p className="muted">{customer}</p>
+          <p className="muted">{isolate(customer)}</p>
         </div>
         <button type="button" className="icon-btn" aria-label={t("Close")} title={t("Close (Esc)")} onClick={onClose}>
           <Icon name="x" />
@@ -213,12 +213,12 @@ export function Drawer({
       </header>
       <div className="fs-drawer-body">
         <div className="fs-drawer-chips">
-          {priority && <Badge tone={priorityTone(priority)}>{priority}</Badge>}
-          {workType && <Badge>{workType}</Badge>}
-          {text(wo?.status) && <Badge tone={tone(String(wo?.status))}>{String(wo?.status)}</Badge>}
+          {priority && <Badge tone={priorityTone(priority)}>{isolate(priority)}</Badge>}
+          {workType && <Badge>{isolate(workType)}</Badge>}
+          {text(wo?.status) && <Badge tone={tone(String(wo?.status))}>{isolate(String(wo?.status))}</Badge>}
           {sla && (
             <Badge tone={sla.tone} title={sla.title}>
-              {sla.text}
+              {isolate(sla.text)}
             </Badge>
           )}
         </div>
@@ -227,14 +227,14 @@ export function Drawer({
           <section className="fs-visit" aria-label={t("The visit")}>
             <h3 className="fs-drawer-h">{t("Visit")}</h3>
             <p>
-              <strong>{stamp(Date.parse(visit.start), zone)}</strong>–{clock(Date.parse(visit.end), zone)} <span className="faint">({span(minutes * MINUTE)})</span>
+              <strong>{isolate(stamp(Date.parse(visit.start), zone))}</strong>–{isolate(clock(Date.parse(visit.end), zone))} <span className="faint">({isolate(span(minutes * MINUTE))})</span>
             </p>
-            <p className="muted">{crew.map((l) => l.technician_name).join(", ")}</p>
+            <p className="muted">{isolate(crew.map((l) => l.technician_name).join(", "))}</p>
             {visit.status === "Scheduled" ? (
               <Alert tone="warning">{t("Planned, not sent. Dispatching tells the technician, and the customer if they have an email on file.")}</Alert>
             ) : (
               <p>
-                <Badge tone={tone(visit.status)}>{visit.status}</Badge>
+                <Badge tone={tone(visit.status)}>{isolate(visit.status)}</Badge>
               </p>
             )}
             {!isMovable(visit) && visit.status !== "Completed" && visit.status !== "Cannot Complete" && <p className="muted">{t("The technician has this one: it can no longer be moved.")}</p>}
@@ -247,7 +247,7 @@ export function Drawer({
                 )}
                 {isMovable(visit) && (
                   <Button aria-expanded={moving} onClick={() => onMoving(!moving)}>
-                    {moving ? "Keep it here" : "Reschedule…"}
+                    {moving ? t("Keep it here") : t("Reschedule…")}
                   </Button>
                 )}
                 {["Scheduled", "Dispatched", "En Route"].includes(visit.status) && (
@@ -264,54 +264,54 @@ export function Drawer({
           {address && (
             <>
               <dt>{t("Where")}</dt>
-              <dd className="fs-pre">{address}</dd>
+              <dd className="fs-pre">{isolate(address)}</dd>
             </>
           )}
           {(contact || phone) && (
             <>
               <dt>{t("Contact")}</dt>
               <dd>
-                {contact}
+                {isolate(contact ?? "")}
                 {contact && phone ? " · " : ""}
-                {phone && <a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a>}
+                {phone && <a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{isolate(phone)}</a>}
               </dd>
             </>
           )}
           {equipment && (
             <>
               <dt>{t("Equipment")}</dt>
-              <dd>{equipment}</dd>
+              <dd>{isolate(equipment)}</dd>
             </>
           )}
           {skills.length > 0 && (
             <>
               <dt>{t("Needs")}</dt>
-              <dd>{skills.join(", ")}</dd>
+              <dd>{isolate(skills.join(", "))}</dd>
             </>
           )}
           {job && (
             <>
               <dt>{t("Planned")}</dt>
-              <dd>{span(lengthOf(job) * MINUTE)}</dd>
+              <dd>{isolate(span(lengthOf(job) * MINUTE))}</dd>
             </>
           )}
           {job?.preferred_start && (
             <>
               <dt>{t("Customer asked for")}</dt>
-              <dd>{stamp(Date.parse(job.preferred_start), zone)}</dd>
+              <dd>{isolate(stamp(Date.parse(job.preferred_start), zone))}</dd>
             </>
           )}
           {description && (
             <>
               <dt>{t("Problem")}</dt>
-              <dd className="fs-pre fs-clamp">{description}</dd>
+              <dd className="fs-pre fs-clamp">{isolate(description)}</dd>
             </>
           )}
         </dl>
         {record.isError && <p className="muted">{t("The job's details could not be loaded.")}</p>}
         {record.isPending && <Spinner label={t("Loading the job")} />}
 
-        {error && <Alert tone="error">{error}</Alert>}
+        {error && <Alert tone="error">{isolate(error)}</Alert>}
 
         {canPlan && job && (
           <Plan

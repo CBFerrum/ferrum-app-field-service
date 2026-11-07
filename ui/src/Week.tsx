@@ -1,7 +1,7 @@
 // A week at a glance: each technician's days as how full they are, to find the day with room or the
 // one that is too full, and open it on the board.
 
-import { initials, t } from "@ferrum/client";
+import { initials, t, isolate } from "@ferrum/client";
 import { type Board, weekOf } from "./board";
 import { hoursText } from "./job";
 import { dayLabel } from "./time";
@@ -18,7 +18,7 @@ export function Week({ board, first, today, onOpen }: { board: Board; first: str
             </th>
             {days.map((d) => (
               <th key={d} scope="col" data-today={d === today || undefined}>
-                {dayLabel(d, { weekday: "short", day: "numeric" })}
+                {isolate(dayLabel(d, { weekday: "short", day: "numeric" }))}
               </th>
             ))}
           </tr>
@@ -28,11 +28,11 @@ export function Week({ board, first, today, onOpen }: { board: Board; first: str
             <tr key={lane.technician}>
               <th scope="row" className="fs-week-who">
                 <span className="fs-avatar" aria-hidden="true">
-                  {initials(lane.technician_name)}
+                  {isolate(initials(lane.technician_name))}
                 </span>
                 <span className="fs-week-name">
-                  {lane.technician_name}
-                  {lane.territory_name && <small className="faint">{lane.territory_name}</small>}
+                  {isolate(lane.technician_name)}
+                  {lane.territory_name && <small className="faint">{isolate(lane.territory_name)}</small>}
                 </span>
               </th>
               {cells.map((c) => {
@@ -42,9 +42,9 @@ export function Week({ board, first, today, onOpen }: { board: Board; first: str
                 const ratio = c.available ? Math.min(1, c.booked / c.available) : c.booked ? 1 : 0;
                 return (
                   <td key={c.day} data-today={c.day === today || undefined} data-off={off || undefined} data-over={c.over || undefined}>
-                    <button type="button" onClick={() => onOpen(c.day)} aria-label={`${lane.technician_name}, ${dayLabel(c.day, { weekday: "long", day: "numeric", month: "long" })}: ${text}${jobs ? `, ${jobs}` : ""}${c.over ? ", booked past their hours" : ""}. Open the day`}>
-                      <strong>{text}</strong>
-                      {jobs && <small>{jobs}</small>}
+                    <button type="button" onClick={() => onOpen(c.day)} aria-label={t("{technician_name}, {value}: {text}{value2}{value3}. Open the day", { technician_name: lane.technician_name, value: dayLabel(c.day, { weekday: "long", day: "numeric", month: "long" }), text, value2: jobs ? `, ${jobs}` : "", value3: c.over ? ", booked past their hours" : "" })}>
+                      <strong>{isolate(text)}</strong>
+                      {jobs && <small>{isolate(jobs)}</small>}
                       {!off && (
                         <span className="fs-meter" aria-hidden="true">
                           <i style={{ width: `${Math.round(ratio * 100)}%` }} data-over={c.over || undefined} />

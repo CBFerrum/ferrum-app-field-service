@@ -113,7 +113,7 @@ export function SignaturePad({ busy, blocked, onSave }: { busy: boolean; /** Why
         onPointerCancel={up}
       />
       <div className="fs-pad-foot">
-        <span className="faint">{blocked && ink ? blocked : ink ? "Signed" : "Sign above"}</span>
+        <span className="faint">{blocked && ink ? blocked : ink ? t("Signed") : t("Sign above")}</span>
         <Button size="sm" onClick={clear} disabled={!ink || busy}>
           {t("Clear")}
         </Button>

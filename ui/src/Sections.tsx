@@ -4,7 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
-import { api, docPath, type FieldError, formatDecimal, t as tr } from "@ferrum/client";
+import { api, docPath, type FieldError, formatDecimal, t as tr, isolate } from "@ferrum/client";
 import { Badge, Button, confirmDialog, Field, Icon } from "@ferrum/kit";
 import { type Doc, LinkInput } from "@ferrum/records";
 import { type CheckRow, elapsed, type ExpenseRow, hoursText, type LabourRow, type PartRow, progress, serialNote, serials, stopped, toggled } from "./job";
@@ -37,7 +37,7 @@ const refusals = (ctx: Ctx, table: string, index: number) => ctx.refused.filter(
 function Why({ list }: { list: FieldError[] }) {
   return list.length ? (
     <p className="field-error" role="alert">
-      {list.map((f) => f.message).join(" ")}
+      {isolate(list.map((f) => f.message).join(" "))}
     </p>
   ) : null;
 }
@@ -58,7 +58,7 @@ export function Checklist({ ctx }: { ctx: Ctx }) {
   return (
     <section id="checklist" className="fs-sec" aria-labelledby="fs-h-checklist">
       <h2 id="fs-h-checklist" className="fs-sec-h">
-        {tr("Checklist")} {rows.length > 0 && <span className="faint">{p.done} of {p.total} done</span>}
+        {tr("Checklist")} {rows.length > 0 && <span className="faint">{tr("{done} of {total} done", { done: p.done, total: p.total })}</span>}
       </h2>
       {rows.length > 0 && (
         <div className="fs-bar-track" role="progressbar" aria-label={tr("Checklist progress")} aria-valuemin={0} aria-valuemax={p.total} aria-valuenow={p.done}>
@@ -71,7 +71,7 @@ export function Checklist({ ctx }: { ctx: Ctx }) {
             <li key={r.id}>
               <label className="fs-check" data-done={r.done || undefined}>
                 <input type="checkbox" checked={!!r.done} disabled={!ctx.editable} onChange={() => tick(r)} />
-                <span className="fs-check-text">{r.task}</span>
+                <span className="fs-check-text">{isolate(r.task ?? "")}</span>
                 {r.required && !r.done && <span className="fs-req">{tr("Required")}</span>}
               </label>
               <Why list={refusals(ctx, "checklist", i)} />
@@ -118,7 +118,7 @@ export function Parts({ ctx }: { ctx: Ctx }) {
     if (out.ok) reset();
   };
   const remove = async (r: PartRow) => {
-    const ok = await confirmDialog({ title: `Remove ${r.item_name ?? "this part"}?`, message: "It is taken off the job and will not leave your stock.", confirmLabel: "Remove", danger: true });
+    const ok = await confirmDialog({ title: tr("Remove {value}?", { value: r.item_name ?? "this part" }), message: tr("It is taken off the job and will not leave your stock."), confirmLabel: tr("Remove"), danger: true });
     if (ok) void ctx.save({ parts: ids(rows.filter((x) => x.id !== r.id)) }, { parts: rows.filter((x) => x.id !== r.id) });
   };
   return (
@@ -132,18 +132,18 @@ export function Parts({ ctx }: { ctx: Ctx }) {
             <li key={r.id} data-new={r.id.startsWith("new-") || undefined}>
               <div className="fs-row">
                 <div className="fs-row-main">
-                  <strong>{r.item_name || "Part"}</strong> <span className="faint">× {formatDecimal(r.qty)}</span>
+                  <strong>{r.item_name || tr("Part")}</strong> <span className="faint">× {isolate(formatDecimal(r.qty))}</span>
                   {r.warranty && (
                     <>
-                      {" "}
+                      {isolate(" ")}
                       <Badge tone="blue">{tr("Under warranty")}</Badge>
                     </>
                   )}
-                  {serials(r.serial_no).length > 0 && <p className="faint">{tr("Serial")} {serials(r.serial_no).join(", ")}</p>}
+                  {serials(r.serial_no).length > 0 && <p className="faint">{tr("Serial")} {isolate(serials(r.serial_no).join(", "))}</p>}
                   {r.batch_no && <p className="faint">{tr("Batch {batch_no}", { batch_no: r.batch_no })}</p>}
                 </div>
                 {ctx.editable && (
-                  <button type="button" className="icon-btn" aria-label={`Remove ${r.item_name ?? "part"}`} onClick={() => void remove(r)}>
+                  <button type="button" className="icon-btn" aria-label={tr("Remove {value}", { value: r.item_name ?? "part" })} onClick={() => void remove(r)}>
                     <Icon name="trash" size={16} />
                   </button>
                 )}
@@ -164,7 +164,7 @@ export function Parts({ ctx }: { ctx: Ctx }) {
               <input id="part-qty" className="input" type="number" inputMode="decimal" min="0" step="any" value={qty} onChange={(e) => setQty(e.target.value)} />
             </Field>
             {serialised && (
-              <Field label={tr("Serial numbers")} htmlFor="part-serial" hint={note ?? "One per line. A scanner can type them in."}>
+              <Field label={tr("Serial numbers")} htmlFor="part-serial" hint={note ?? tr("One per line. A scanner can type them in.")}>
                 <textarea id="part-serial" className="textarea" rows={3} autoCapitalize="characters" spellCheck={false} value={serial} onChange={(e) => setSerial(e.target.value)} />
               </Field>
             )}
@@ -276,7 +276,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
     }
   };
   const remove = async (r: LabourRow) => {
-    const ok = await confirmDialog({ title: "Remove this time?", confirmLabel: "Remove", danger: true });
+    const ok = await confirmDialog({ title: tr("Remove this time?"), confirmLabel: tr("Remove"), danger: true });
     if (ok) void ctx.save({ labour: ids(rows.filter((x) => x.id !== r.id)) }, { labour: rows.filter((x) => x.id !== r.id) });
   };
   const hours = rows.reduce((n, r) => n + (Number(r.hours) || 0), 0);
@@ -285,7 +285,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
   return (
     <section id="time" className="fs-sec" aria-labelledby="fs-h-time">
       <h2 id="fs-h-time" className="fs-sec-h">
-        {tr("Time")} {rows.length > 0 && <span className="faint">{hoursText(hours)} h</span>}
+        {tr("Time")} {rows.length > 0 && <span className="faint">{isolate(hoursText(hours))} h</span>}
       </h2>
       {ctx.editable && (
         <div className="fs-timer" data-running={timer.startedAt != null || undefined}>
@@ -293,9 +293,9 @@ export function Time({ ctx }: { ctx: Ctx }) {
             <>
               <div>
                 <strong className="fs-timer-clock" aria-live="off">
-                  {elapsed(timer.startedAt, timer.now)}
+                  {isolate(elapsed(timer.startedAt, timer.now))}
                 </strong>
-                <p className="faint">{tr("Running since")} {clock(timer.startedAt, ctx.zone)}</p>
+                <p className="faint">{tr("Running since")} {isolate(clock(timer.startedAt, ctx.zone))}</p>
               </div>
               <Button variant="primary" loading={busy} onClick={() => void stop()}>
                 {tr("Stop and save")}
@@ -320,15 +320,15 @@ export function Time({ ctx }: { ctx: Ctx }) {
             <li key={r.id} data-new={r.id.startsWith("new-") || undefined}>
               <div className="fs-row">
                 <div className="fs-row-main">
-                  <strong>{r.hours != null ? `${hoursText(r.hours)} h` : "Time"}</strong> {r.technician_name && <span className="faint">{r.technician_name}</span>}
+                  <strong>{r.hours != null ? `${hoursText(r.hours)} h` : tr("Time")}</strong> {r.technician_name && <span className="faint">{isolate(r.technician_name)}</span>}
                   {r.billable === false && (
                     <>
-                      {" "}
+                      {isolate(" ")}
                       <Badge>{tr("Not billed")}</Badge>
                     </>
                   )}
                   <p className="faint">
-                    {stamp(r.from_time)} – {r.to_time ? clock(Date.parse(r.to_time), ctx.zone) : ""}
+                    {isolate(stamp(r.from_time))} – {r.to_time ? clock(Date.parse(r.to_time), ctx.zone) : ""}
                   </p>
                 </div>
                 {ctx.editable && (
@@ -350,7 +350,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
                 <select id="time-who" className="select" value={who || crew[0]?.technician} onChange={(e) => setWho(e.target.value)}>
                   {crew.map((c) => (
                     <option key={c.technician} value={c.technician}>
-                      {c.technician_name}
+                      {isolate(c.technician_name ?? "")}
                     </option>
                   ))}
                 </select>
@@ -412,13 +412,13 @@ export function Expenses({ ctx }: { ctx: Ctx }) {
     }
   };
   const remove = async (r: ExpenseRow) => {
-    const ok = await confirmDialog({ title: `Remove this ${(r.expense_type ?? "expense").toLowerCase()}?`, confirmLabel: "Remove", danger: true });
+    const ok = await confirmDialog({ title: tr("Remove this {value}?", { value: (r.expense_type ?? "expense").toLowerCase() }), confirmLabel: tr("Remove"), danger: true });
     if (ok) void ctx.save({ expenses: ids(rows.filter((x) => x.id !== r.id)) }, { expenses: rows.filter((x) => x.id !== r.id) });
   };
   return (
     <section id="expenses" className="fs-sec" aria-labelledby="fs-h-expenses">
       <h2 id="fs-h-expenses" className="fs-sec-h">
-        {tr("Expenses")} {rows.length > 0 && <span className="faint">{formatDecimal(ctx.doc.expense_total ?? 0, 2)}</span>}
+        {tr("Expenses")} {rows.length > 0 && <span className="faint">{isolate(formatDecimal(ctx.doc.expense_total ?? 0, 2))}</span>}
       </h2>
       {rows.length > 0 && (
         <ul className="fs-rows">
@@ -426,17 +426,17 @@ export function Expenses({ ctx }: { ctx: Ctx }) {
             <li key={r.id} data-new={r.id.startsWith("new-") || undefined}>
               <div className="fs-row">
                 <div className="fs-row-main">
-                  <strong>{r.expense_type}</strong> <span className="faint">{formatDecimal(r.amount, 2)}</span>
+                  <strong>{isolate(r.expense_type ?? "")}</strong> <span className="faint">{isolate(formatDecimal(r.amount, 2))}</span>
                   {r.billable === false && (
                     <>
-                      {" "}
+                      {isolate(" ")}
                       <Badge>{tr("Not billed")}</Badge>
                     </>
                   )}
-                  {r.description && <p className="faint">{r.description}</p>}
+                  {r.description && <p className="faint">{isolate(r.description)}</p>}
                 </div>
                 {ctx.editable && (
-                  <button type="button" className="icon-btn" aria-label={`Remove ${r.expense_type ?? "expense"}`} onClick={() => void remove(r)}>
+                  <button type="button" className="icon-btn" aria-label={tr("Remove {value}", { value: r.expense_type ?? "expense" })} onClick={() => void remove(r)}>
                     <Icon name="trash" size={16} />
                   </button>
                 )}
@@ -453,7 +453,7 @@ export function Expenses({ ctx }: { ctx: Ctx }) {
             <Field label={tr("What for")} htmlFor="exp-type" required>
               <select id="exp-type" className="select" value={kind} onChange={(e) => setType(e.target.value)}>
                 {types.map((t) => (
-                  <option key={t}>{t}</option>
+                  <option key={t}>{isolate(t)}</option>
                 ))}
               </select>
             </Field>

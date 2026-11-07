@@ -8,7 +8,7 @@ import { type Held } from "./Lanes";
 import { type Job, lengthOf } from "./board";
 import { slaChip } from "./sla";
 import { span, stamp, MINUTE } from "./time";
-import { t } from "@ferrum/client";
+import { t, isolate } from "@ferrum/client";
 
 const SKILLS_SHOWN = 3;
 
@@ -62,30 +62,30 @@ export function QueueCard({
     >
       <div className="fs-card-top">
         <strong className="fs-card-title">{job.customer_name || job.number}</strong>
-        {(job.priority === "Urgent" || job.priority === "High") && <span className="fs-pri">{job.priority}</span>}
+        {(job.priority === "Urgent" || job.priority === "High") && <span className="fs-pri">{isolate(job.priority)}</span>}
       </div>
-      <div className="fs-card-sub faint">{[job.number, job.work_type, job.territory_name].filter(Boolean).join(" · ")}</div>
+      <div className="fs-card-sub faint">{isolate([job.number, job.work_type, job.territory_name].filter(Boolean).join(" · "))}</div>
       {job.required_skills.length > 0 && (
         <div className="fs-card-skills">
           {job.required_skills.slice(0, SKILLS_SHOWN).map((s) => (
             <span key={s} className="fs-skill">
-              {s}
+              {isolate(s)}
             </span>
           ))}
           {job.required_skills.length > SKILLS_SHOWN && <span className="fs-skill">+{job.required_skills.length - SKILLS_SHOWN}</span>}
         </div>
       )}
-      {job.preferred_start && <div className="fs-card-sub faint">{t("Asked for")} {stamp(Date.parse(job.preferred_start), zone)}</div>}
+      {job.preferred_start && <div className="fs-card-sub faint">{t("Asked for")} {isolate(stamp(Date.parse(job.preferred_start), zone))}</div>}
       <div className="fs-card-foot">
         {sla ? (
           <Badge tone={sla.tone} title={sla.title}>
-            {sla.text}
+            {isolate(sla.text)}
           </Badge>
         ) : (
           <span className="faint">{t("No service level")}</span>
         )}
         <span className="faint fs-card-len" title={t("Planned length")}>
-          <Icon name="timeline" size={12} /> {span(minutes * MINUTE)}
+          <Icon name="timeline" size={12} /> {isolate(span(minutes * MINUTE))}
         </span>
       </div>
     </article>
@@ -119,7 +119,7 @@ export function Queue({
     <aside className="fs-rail" aria-label={t("Waiting to be scheduled")}>
       <header className="fs-rail-head">
         <h2 className="fs-rail-title">
-          {t("Waiting")} <span className="faint">{filtered ? `${jobs.length} of ${total}` : total}</span>
+          {t("Waiting")} <span className="faint">{filtered ? t("{length} of {total}", { length: jobs.length, total }) : total}</span>
         </h2>
         <input className="input fs-rail-search" type="search" placeholder={t("Find a job…")} aria-label={t("Find a waiting job")} value={search} onChange={(e) => onSearch(e.target.value)} />
         {skills.length > 0 && (
@@ -127,7 +127,7 @@ export function Queue({
             <option value="">{t("Any skill")}</option>
             {skills.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {isolate(s)}
               </option>
             ))}
           </select>

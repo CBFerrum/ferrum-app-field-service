@@ -6,7 +6,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useCallback, useState } from "react";
 import { Link } from "react-router";
-import { api, docPath, formatDecimal, formatDate, t as tr } from "@ferrum/client";
+import { api, docPath, formatDecimal, formatDate, t as tr, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, confirmDialog, Dialog, Field, Icon, PageLoading, statusTone, TabPanel, Tabs, toast, useLiveEntity } from "@ferrum/kit";
 import { can, CollabPanel, type EntityMeta, LinkTitle, RecordFields, useMetaIndex } from "@ferrum/records";
 import { reason } from "./api";
@@ -129,7 +129,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
     setBusy(null);
     if (!out.ok) {
       v.setRefused(out.fields);
-      toast(out.message ?? "That did not work.", "error");
+      toast(out.message ?? tr("That did not work."), "error");
       return false;
     }
     v.setRefused([]);
@@ -137,17 +137,17 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
     return true;
   };
   const complete = async () => {
-    const ok = await confirmDialog({ title: "Complete this work order?", message: "The parts leave stock and the work order is locked.", confirmLabel: "Complete" });
-    if (ok) await act("complete", "The work order is completed.");
+    const ok = await confirmDialog({ title: tr("Complete this work order?"), message: tr("The parts leave stock and the work order is locked."), confirmLabel: tr("Complete") });
+    if (ok) await act("complete", tr("The work order is completed."));
   };
   const cancel = async (why: string) => {
-    if (await act("cancel_work_order", "The work order is cancelled.", { reason: why || undefined })) setCancelling(false);
+    if (await act("cancel_work_order", tr("The work order is cancelled."), { reason: why || undefined })) setCancelling(false);
   };
   const invoiceNow = async () => {
     setBusy("create_invoice");
     const out = await v.run("create_invoice");
     setBusy(null);
-    if (!out.ok) return toast(out.message ?? "That did not work.", "error");
+    if (!out.ok) return toast(out.message ?? tr("That did not work."), "error");
     toast(tr("The invoice is made as a draft."));
   };
   const trackingLink = async () => {
@@ -178,22 +178,22 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
       <header className="fs-co-head">
         <div className="fs-co-title">
           <h1 className="page-title">
-            {text(doc.number)} · {text(doc.customer_name) ?? "Customer"}
+            {isolate(text(doc.number) ?? "")} · {text(doc.customer_name) ?? tr("Customer")}
           </h1>
           <p className="page-sub">
-            {[text(doc.work_type), text(doc.priority) && `${doc.priority} priority`, text(doc.reported_at) && `reported ${stamp(Date.parse(String(doc.reported_at)), zone)}`].filter(Boolean).join(" · ")}
+            {isolate([text(doc.work_type), text(doc.priority) && `${doc.priority} priority`, text(doc.reported_at) && `reported ${stamp(Date.parse(String(doc.reported_at)), zone)}`].filter(Boolean).join(" · "))}
           </p>
         </div>
         <div className="page-actions">
-          <Badge tone={tone(status)}>{status}</Badge>
-          {text(doc.priority) && doc.priority !== "Medium" && doc.priority !== "Low" && <Badge tone={priorityTone(String(doc.priority))}>{String(doc.priority)}</Badge>}
+          <Badge tone={tone(status)}>{isolate(status)}</Badge>
+          {text(doc.priority) && doc.priority !== "Medium" && doc.priority !== "Low" && <Badge tone={priorityTone(String(doc.priority))}>{isolate(String(doc.priority))}</Badge>}
           {!cancelled && !submitted && ["New", "Scheduled", "Dispatched"].includes(status) && (
             <Link className={`btn btn-md ${status === "New" ? "btn-primary" : "btn-default"}`} to={board}>
-              {status === "New" ? "Schedule on the board" : "Move on the board"}
+              {status === "New" ? tr("Schedule on the board") : tr("Move on the board")}
             </Link>
           )}
           {status === "Scheduled" && canWrite && (
-            <Button variant="primary" loading={busy === "dispatch"} onClick={() => void act("dispatch", "Dispatched. The technician is told.")}>
+            <Button variant="primary" loading={busy === "dispatch"} onClick={() => void act("dispatch", tr("Dispatched. The technician is told."))}>
               {tr("Dispatch")}
             </Button>
           )}
@@ -226,7 +226,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
       <ol className="fs-steps" aria-label={tr("Where the work order is")}>
         {stages.map((s) => (
           <li key={s.name} data-state={s.state} aria-current={s.state === "current" ? "step" : undefined}>
-            {s.name}
+            {isolate(s.name)}
           </li>
         ))}
       </ol>
@@ -243,8 +243,8 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
           <Tabs
             id="wo"
             tabs={[
-              { id: "job", label: "The job" },
-              { id: "discussion", label: "Discussion" },
+              { id: "job", label: tr("The job") },
+              { id: "discussion", label: tr("Discussion") },
             ]}
             value={tab}
             onChange={(t) => setTab(t as "job" | "discussion")}
@@ -257,18 +257,18 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
               {(clocks.length > 0 || sla) && (
                 <section className="fs-card-box" aria-label={tr("Service level")}>
                   <h2 className="fs-sec-h">
-                    {tr("Service level")}{" "}
+                    {tr("Service level")}{isolate(" ")}
                     {sla && (
                       <Badge tone={sla.tone} title={sla.title}>
-                        {sla.text}
+                        {isolate(sla.text)}
                       </Badge>
                     )}
                   </h2>
                   <ul className="fs-clocks">
                     {clocks.map((c) => (
                       <li key={c.label} data-state={c.state}>
-                        <span className="faint">{c.label}</span> <strong>{stamp(c.due, zone)}</strong>
-                        <span className="fs-clock-text">{c.text}</span>
+                        <span className="faint">{isolate(c.label)}</span> <strong>{isolate(stamp(c.due, zone))}</strong>
+                        <span className="fs-clock-text">{isolate(c.text)}</span>
                       </li>
                     ))}
                   </ul>
@@ -284,7 +284,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                     <>
                       <dt>{tr("Contact")}</dt>
                       <dd>
-                        {[text(doc.contact_name), text(doc.contact_phone) && <a key="p" href={`tel:${String(doc.contact_phone).replace(/[^\d+]/g, "")}`}>{String(doc.contact_phone)}</a>, text(doc.contact_email) && <a key="e" href={`mailto:${String(doc.contact_email)}`}>{String(doc.contact_email)}</a>]
+                        {[text(doc.contact_name), text(doc.contact_phone) && <a key="p" href={`tel:${String(doc.contact_phone).replace(/[^\d+]/g, "")}`}>{isolate(String(doc.contact_phone))}</a>, text(doc.contact_email) && <a key="e" href={`mailto:${String(doc.contact_email)}`}>{isolate(String(doc.contact_email))}</a>]
                           .filter(Boolean)
                           .map((x, i) => (
                             <span key={i}>
@@ -299,7 +299,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                     <>
                       <dt>{tr("Site")}</dt>
                       <dd className="fs-pre">
-                        {text(doc.site_address)}
+                        {isolate(text(doc.site_address) ?? "")}
                         {titles.territory ? `\n${titles.territory}` : ""}
                       </dd>
                     </>
@@ -309,10 +309,10 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                       <dt>{tr("Equipment")}</dt>
                       <dd>
                         <LinkTitle to="CustomerEquipment" id={equipmentId} title={titles.equipment} />
-                        {text(doc.serial_no) && <span className="faint"> {tr("· serial")} {text(doc.serial_no)}</span>}
+                        {text(doc.serial_no) && <span className="faint"> {tr("· serial")} {isolate(text(doc.serial_no) ?? "")}</span>}
                         {equipment.data && (
                           <p className="faint">
-                            {[text(equipment.data.warranty_end) && `warranty until ${formatDate(equipment.data.warranty_end)}`, text(equipment.data.last_service_date) && `last serviced ${formatDate(equipment.data.last_service_date)}`].filter(Boolean).join(" · ")}
+                            {isolate([text(equipment.data.warranty_end) && `warranty until ${formatDate(equipment.data.warranty_end)}`, text(equipment.data.last_service_date) && `last serviced ${formatDate(equipment.data.last_service_date)}`].filter(Boolean).join(" · "))}
                           </p>
                         )}
                       </dd>
@@ -321,13 +321,13 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                   {text(doc.description) && (
                     <>
                       <dt>{tr("Problem")}</dt>
-                      <dd className="fs-pre">{text(doc.description)}</dd>
+                      <dd className="fs-pre">{isolate(text(doc.description) ?? "")}</dd>
                     </>
                   )}
                   {Array.isArray(doc.required_skills) && doc.required_skills.length > 0 && (
                     <>
                       <dt>{tr("Needs")}</dt>
-                      <dd>{(doc.required_skills as { skill?: string; _titles?: Record<string, string> }[]).map((r) => r._titles?.skill ?? r.skill).join(", ")}</dd>
+                      <dd>{isolate((doc.required_skills as { skill?: string; _titles?: Record<string, string> }[]).map((r) => r._titles?.skill ?? r.skill).join(", "))}</dd>
                     </>
                   )}
                 </dl>
@@ -353,8 +353,8 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                   <ul className="fs-visits">
                     {visits.data.map((a) => (
                       <li key={a.id} data-status={a.status?.toLowerCase().replace(/\s+/g, "-")}>
-                        <Link to={`/e/ServiceAppointment/${a.id}`}>{a.number}</Link>
-                        <Badge tone={tone(a.status ?? "")}>{a.status}</Badge>
+                        <Link to={`/e/ServiceAppointment/${a.id}`}>{isolate(a.number ?? "")}</Link>
+                        <Badge tone={tone(a.status ?? "")}>{isolate(a.status ?? "")}</Badge>
                         <span>
                           {a.scheduled_start && a.scheduled_end
                             ? `${dayLabel(dayOf(Date.parse(a.scheduled_start), zone))}, ${clock(Date.parse(a.scheduled_start), zone)}–${clock(Date.parse(a.scheduled_end), zone)}`
@@ -362,7 +362,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                         </span>
                         {a.actual_start && (
                           <span className="faint">
-                            {tr("on site")} {clock(Date.parse(a.actual_start), zone)}
+                            {tr("on site")} {isolate(clock(Date.parse(a.actual_start), zone))}
                             {a.actual_end ? `–${clock(Date.parse(a.actual_end), zone)}` : ""}
                           </span>
                         )}
@@ -373,12 +373,12 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                   <p className="muted">{tr("Not scheduled yet.")}</p>
                 )}
                 {Array.isArray(doc.crew) && doc.crew.length > 0 && (
-                  <p className="muted">{tr("Crew:")} {(doc.crew as { technician_name?: string }[]).map((c) => c.technician_name).filter(Boolean).join(", ")}</p>
+                  <p className="muted">{tr("Crew:")} {isolate((doc.crew as { technician_name?: string }[]).map((c) => c.technician_name).filter(Boolean).join(", "))}</p>
                 )}
                 <ol className="fs-history" aria-label={tr("What happened")}>
                   {events.map((e) => (
                     <li key={e.text + e.at}>
-                      <time className="faint">{stamp(e.at, zone)}</time> {e.text}
+                      <time className="faint">{isolate(stamp(e.at, zone))}</time> {isolate(e.text)}
                     </li>
                   ))}
                 </ol>
@@ -396,18 +396,18 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                 <div className="fs-money">
                   <dl className="fs-facts">
                     <dt>{tr("Billable time")}</dt>
-                    <dd>{hoursText(doc.billable_hours as string)} {tr("h of")} {hoursText(doc.labour_hours as string)} h{doc.labour_covered === true ? " (free: covered)" : ""}</dd>
+                    <dd>{isolate(hoursText(doc.billable_hours as string))} {tr("h of")} {isolate(hoursText(doc.labour_hours as string))} h{doc.labour_covered === true ? tr(" (free: covered)") : ""}</dd>
                     <dt>{tr("Expenses")}</dt>
-                    <dd>{formatDecimal(money.expenses, 2)}</dd>
+                    <dd>{isolate(formatDecimal(money.expenses, 2))}</dd>
                     {money.cost != null && (
                       <>
                         <dt>{tr("Labour cost")}</dt>
-                        <dd>{formatDecimal(money.labour ?? 0, 2)}</dd>
+                        <dd>{isolate(formatDecimal(money.labour ?? 0, 2))}</dd>
                         <dt>{tr("Parts cost")}</dt>
-                        <dd>{formatDecimal(money.parts ?? 0, 2)}</dd>
+                        <dd>{isolate(formatDecimal(money.parts ?? 0, 2))}</dd>
                         <dt>{tr("It cost")}</dt>
                         <dd>
-                          <strong>{formatDecimal(money.cost, 2)}</strong>
+                          <strong>{isolate(formatDecimal(money.cost, 2))}</strong>
                         </dd>
                       </>
                     )}
@@ -415,14 +415,14 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                       <>
                         <dt>{tr("Billed")}</dt>
                         <dd>
-                          <strong>{formatDecimal(billedTotal, 2)}</strong>
+                          <strong>{isolate(formatDecimal(billedTotal, 2))}</strong>
                         </dd>
                       </>
                     )}
                     {difference != null && (
                       <>
                         <dt>{tr("Difference")}</dt>
-                        <dd data-negative={difference.startsWith("-") || undefined}>{formatDecimal(difference, 2)}</dd>
+                        <dd data-negative={difference.startsWith("-") || undefined}>{isolate(formatDecimal(difference, 2))}</dd>
                       </>
                     )}
                   </dl>
@@ -438,8 +438,8 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                   ) : (
                     <>
                       <p>
-                        <LinkTitle to="SalesInvoice" id={invoiceId} title={titles.sales_invoice} />{" "}
-                        {text(invoice.data?.status) && <Badge tone={statusTone(invoice.data?.status)}>{String(invoice.data?.status)}</Badge>}
+                        <LinkTitle to="SalesInvoice" id={invoiceId} title={titles.sales_invoice} />{isolate(" ")}
+                        {text(invoice.data?.status) && <Badge tone={statusTone(invoice.data?.status)}>{isolate(String(invoice.data?.status))}</Badge>}
                       </p>
                       {lines.length > 0 ? (
                         <div className="table-wrap">
@@ -456,11 +456,11 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                             {lines.map((l, i) => (
                               <tr key={i} data-free={l.free || undefined}>
                                 <td>
-                                  {l.text} {l.free && <Badge tone="green">{tr("Covered")}</Badge>}
+                                  {isolate(l.text)} {l.free && <Badge tone="green">{tr("Covered")}</Badge>}
                                 </td>
-                                <td className="num">{formatDecimal(l.qty)}</td>
-                                <td className="num">{formatDecimal(l.rate, 2)}</td>
-                                <td className="num">{formatDecimal(l.amount, 2)}</td>
+                                <td className="num">{isolate(formatDecimal(l.qty))}</td>
+                                <td className="num">{isolate(formatDecimal(l.rate, 2))}</td>
+                                <td className="num">{isolate(formatDecimal(l.amount, 2))}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -468,7 +468,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                             <tfoot>
                               <tr>
                                 <td colSpan={3}>{tr("Total")}</td>
-                                <td className="num">{formatDecimal(invoice.data?.grand_total, 2)}</td>
+                                <td className="num">{isolate(formatDecimal(invoice.data?.grand_total, 2))}</td>
                               </tr>
                             </tfoot>
                           )}
@@ -510,11 +510,11 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                 <ul className="fs-earlier">
                   {earlier.data.map((e) => (
                     <li key={String(e.id)}>
-                      <Link to={`/w/${String(e.id)}`}>{String(e.number)}</Link> <Badge tone={tone(String(e.status))}>{String(e.status)}</Badge>
+                      <Link to={`/w/${String(e.id)}`}>{isolate(String(e.number))}</Link> <Badge tone={tone(String(e.status))}>{isolate(String(e.status))}</Badge>
                       <p className="faint">
-                        {[text(e.work_type), text(e.completed_at) ?? text(e.reported_at) ? stamp(Date.parse(String(e.completed_at ?? e.reported_at)), zone) : null].filter(Boolean).join(" · ")}
+                        {isolate([text(e.work_type), text(e.completed_at) ?? text(e.reported_at) ? stamp(Date.parse(String(e.completed_at ?? e.reported_at)), zone) : null].filter(Boolean).join(" · "))}
                       </p>
-                      {text(e.description) && <p className="fs-clamp-2">{text(e.description)}</p>}
+                      {text(e.description) && <p className="fs-clamp-2">{isolate(text(e.description) ?? "")}</p>}
                     </li>
                   ))}
                 </ul>

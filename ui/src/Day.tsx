@@ -5,7 +5,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { api, bootstrap, todayIso, t as tr } from "@ferrum/client";
+import { api, bootstrap, todayIso, t as tr, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, EmptyState, ErrorState, Icon, Spinner, toast, useLiveEntity, useShellTitle } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
 import { act, loadBoard, reason } from "./api";
@@ -39,28 +39,28 @@ export function StopCard({ stop, zone, now, current, busy, onGo }: { stop: Stop;
     <article className="fs-stop" data-current={current || undefined} data-done={["Completed", "Invoiced"].includes(status) || undefined}>
       <header className="fs-stop-head">
         <time className="fs-stop-time">
-          {clock(Date.parse(v.start), zone)}
-          <span className="faint"> – {clock(Date.parse(v.end), zone)}</span>
+          {isolate(clock(Date.parse(v.start), zone))}
+          <span className="faint"> – {isolate(clock(Date.parse(v.end), zone))}</span>
         </time>
-        <Badge tone={tone(status)}>{status}</Badge>
-        {(job?.priority === "Urgent" || job?.priority === "High") && <Badge tone={priorityTone(job.priority)}>{job.priority}</Badge>}
+        <Badge tone={tone(status)}>{isolate(status)}</Badge>
+        {(job?.priority === "Urgent" || job?.priority === "High") && <Badge tone={priorityTone(job.priority)}>{isolate(job.priority)}</Badge>}
         {sla && (
           <Badge tone={sla.tone} title={sla.title}>
-            {sla.text}
+            {isolate(sla.text)}
           </Badge>
         )}
       </header>
       <h2 className="fs-stop-title">
-        <Link to={path}>{customer}</Link>
+        <Link to={path}>{isolate(customer)}</Link>
       </h2>
-      <p className="fs-stop-sub">{[v.work_order_number, job?.work_type, `${span(length * MINUTE)} planned`].filter(Boolean).join(" · ")}</p>
-      {job?.site_address && <p className="fs-stop-address">{job.site_address}</p>}
+      <p className="fs-stop-sub">{isolate([v.work_order_number, job?.work_type, `${span(length * MINUTE)} planned`].filter(Boolean).join(" · "))}</p>
+      {job?.site_address && <p className="fs-stop-address">{isolate(job.site_address)}</p>}
       {v.travel && v.travel.minutes > 0 && (
         <p className="fs-stop-travel">
-          <Icon name="timeline" size={13} /> {tr("About")} {span(v.travel.minutes * MINUTE)} {tr("to get there ({km} km from", { km: v.travel.km })} {v.travel.from === "home" ? "where you start" : "your last job"})
+          <Icon name="timeline" size={13} /> {tr("About")} {isolate(span(v.travel.minutes * MINUTE))} {tr("to get there ({km} km from", { km: v.travel.km })} {v.travel.from === "home" ? tr("where you start") : tr("your last job")})
         </p>
       )}
-      {job?.description && <p className="fs-stop-problem">{job.description}</p>}
+      {job?.description && <p className="fs-stop-problem">{isolate(job.description)}</p>}
       {(maps || tel) && (
         <div className="fs-stop-links">
           {maps && (
@@ -82,10 +82,10 @@ export function StopCard({ stop, zone, now, current, busy, onGo }: { stop: Stop;
           </Link>
         ) : current && step ? (
           <Button variant="primary" loading={busy} onClick={() => onGo(step.action as "start_travel" | "arrive")}>
-            {step.label}
+            {isolate(step.label)}
           </Button>
         ) : (
-          current && note && <p className="muted">{note}</p>
+          current && note && <p className="muted">{isolate(note)}</p>
         )}
         <Link className="btn btn-default" to={path}>
           {tr("Open the job")}
@@ -103,7 +103,7 @@ interface DayData {
 }
 
 export function Day() {
-  useShellTitle("My day");
+  useShellTitle(tr("My day"));
   const qc = useQueryClient();
   const me = useMe().data;
   // Offline, the person is the one this page was served to.
@@ -196,7 +196,7 @@ export function Day() {
         return;
       }
       await act("ServiceWorkOrder", stop.visit.work_order, action);
-      toast(action === "start_travel" ? "On your way. The customer is told if they asked to be." : "You are on site.");
+      toast(action === "start_travel" ? tr("On your way. The customer is told if they asked to be.") : tr("You are on site."));
     } catch (e) {
       if (unreachable(e) && keep()) {
         setHeld(heldSteps());
@@ -223,9 +223,9 @@ export function Day() {
       <p className="muted">{tr("A service manager adds a technician with your email address, and your jobs appear here.")}</p>
     </EmptyState>
   ) : !arranged || !count ? (
-    <EmptyState title={isToday ? "Nothing planned for today" : `Nothing planned for ${dayLabel(day)}`} icon="check">
+    <EmptyState title={isToday ? tr("Nothing planned for today") : tr("Nothing planned for {day}", { day: dayLabel(day) })} icon="check">
       <button type="button" className="link-btn" onClick={() => move(1)}>
-        {tr("See")} {dayLabel(addDays(day, 1))}
+        {tr("See")} {isolate(dayLabel(addDays(day, 1)))}
       </button>
     </EmptyState>
   ) : (
@@ -260,7 +260,7 @@ export function Day() {
           <Tabs />
           <p className="page-sub" aria-live="polite">
             {q.data?.lane && arranged && count
-              ? `${dayLabel(day, { weekday: "long", day: "numeric", month: "long" })} · ${todo} ${todo === 1 ? "job" : "jobs"} to do${first ? `, from ${clock(Date.parse(first.visit.start), zone)}` : ""}`
+              ? tr("{day} · {todo} {value} to do{value2}", { day: dayLabel(day, { weekday: "long", day: "numeric", month: "long" }), todo, value: todo === 1 ? "job" : "jobs", value2: first ? `, from ${clock(Date.parse(first.visit.start), zone)}` : "" })
               : dayLabel(day, { weekday: "long", day: "numeric", month: "long" })}
           </p>
         </div>
@@ -279,7 +279,7 @@ export function Day() {
       {q.error && q.data && <Stale error={q.error} onRetry={() => void q.refetch()} />}
       {q.data?.offline && (
         <Alert tone="info" action={<Button size="sm" icon="refresh" onClick={() => void q.refetch()}>{tr("Try again")}</Button>}>
-          {tr("No connection: your day as it was at")} {clock(Date.parse(q.data.offline), zone)}{tr(". What you do is sent when the connection is back.")}
+          {tr("No connection: your day as it was at")} {isolate(clock(Date.parse(q.data.offline), zone))}{tr(". What you do is sent when the connection is back.")}
         </Alert>
       )}
       {held.length > 0 && (
@@ -288,7 +288,7 @@ export function Day() {
           <ul>
             {held.map((w) => (
               <li key={w.key}>
-                {w.label}, {clock(Date.parse(w.at), zone)}
+                {isolate(w.label)}, {isolate(clock(Date.parse(w.at), zone))}
               </li>
             ))}
           </ul>
@@ -299,7 +299,7 @@ export function Day() {
           <strong>{tr("Your dispatcher changed your day.")}</strong>
           <ul>
             {news.map((n) => (
-              <li key={n}>{n}</li>
+              <li key={n}>{isolate(n)}</li>
             ))}
           </ul>
         </Alert>

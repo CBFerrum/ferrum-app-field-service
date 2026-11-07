@@ -6,7 +6,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, docPath, type FieldError } from "@ferrum/client";
+import { api, ApiError, docPath, type FieldError, t } from "@ferrum/client";
 import { toast, useLiveEntity } from "@ferrum/kit";
 import type { Doc } from "@ferrum/records";
 import { act, reason } from "./api";
@@ -122,14 +122,14 @@ export function useWork(id: string) {
           // No connection: the change waits on this phone and still shows (it is kept, not lost).
           if (unreachable(e) && keepChange(before, fields, shown)) {
             if (truth.current) qc.setQueryData<Doc>(key, truth.current);
-            toast("No connection: kept on this phone, and sent when the connection is back.");
+            toast(t("No connection: kept on this phone, and sent when the connection is back."));
             return { ok: true, fields: [], held: true };
           }
           stale.current = true;
           // The change was never made: show the job as it is.
           if (truth.current) qc.setQueryData<Doc>(key, truth.current);
           const conflict = e instanceof ApiError && (e.status === 409 || e.status === 412);
-          const message = conflict ? "Someone else changed this job. Here it is as it stands now." : reason(e);
+          const message = conflict ? t("Someone else changed this job. Here it is as it stands now.") : reason(e);
           toast(message, "error");
           return { ok: false, fields: e instanceof ApiError ? e.fields : [], message };
         }
