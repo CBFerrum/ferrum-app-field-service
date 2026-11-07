@@ -1,6 +1,6 @@
 id: field-service
 name: Field Service
-version: 0.4.10
+version: 0.4.11
 publisher: cbferrum
 summary: "Field service: service requests, work orders, technician scheduling and dispatch, parts and time, checklists, signatures and invoicing"
 description: README.md
@@ -37,3 +37,17 @@ contributes:
   shell.create:
     - {id: work_order, label: Work order, path: field-service/e/ServiceWorkOrder/new, entity: ServiceWorkOrder}
     - {id: request, label: Service request, path: field-service/e/ServiceRequest/new, entity: ServiceRequest}
+  # What the assistant should know in Field Service's pages, and what it suggests asking there.
+  shell.assistant:
+    - id: field_service
+      title: "Field Service"
+      instructions: >-
+        A ServiceRequest becomes a ServiceWorkOrder: New, Scheduled, Dispatched, En Route, On Site, Completed,
+        Invoiced or Cancelled. Each visit is a ServiceAppointment with its technicians. The parts, labour and expenses
+        on a work order are what is invoiced through ERP. A ServiceContract sets the SLA targets for a customer's
+        equipment (CustomerEquipment), and technicians have skills and territories that dispatch matches.
+      suggestions:
+        - "Which work orders are on today, and who has them?"
+        - "Which visits could not be completed this week?"
+        - "Which completed work orders are not invoiced yet?"
+        - "Which service contracts expire this quarter?"
