@@ -83,7 +83,7 @@
 .fs-card {
   padding: 0.5rem 0.625rem;
   border: 1px solid var(--border);
-  border-left: 3px solid var(--border-strong);
+  border-inline-start: 3px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
@@ -91,11 +91,11 @@
 }
 
 .fs-card[data-priority="Urgent"] {
-  border-left-color: var(--danger);
+  border-inline-start-color: var(--danger);
 }
 
 .fs-card[data-priority="High"] {
-  border-left-color: var(--warning);
+  border-inline-start-color: var(--warning);
 }
 
 .fs-card:hover {
@@ -577,7 +577,7 @@
 .fs-week td {
   padding: 0;
   border-bottom: 1px solid var(--border);
-  text-align: left;
+  text-align: start;
 }
 
 .fs-week tbody tr:last-child th,
@@ -598,7 +598,7 @@
 
 .fs-week-who {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 1;
   width: 11rem;
   min-width: 9rem;
@@ -626,7 +626,7 @@
 
 .fs-week td {
   width: 1%;
-  border-left: 1px solid var(--border);
+  border-inline-start: 1px solid var(--border);
 }
 
 .fs-week td[data-today] {
@@ -646,7 +646,7 @@
   font: inherit;
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -915,7 +915,7 @@
   .fs-drawer {
     position: fixed;
     top: var(--ferrum-bar-height, 48px);
-    right: 0;
+    inset-inline-end: 0;
     bottom: 0;
     z-index: 30;
     width: min(26rem, 100vw);
@@ -950,9 +950,9 @@
   /* A sheet from the bottom, over the board. */
   .fs-drawer {
     top: auto;
-    right: 0;
+    inset-inline-end: 0;
     bottom: 0;
-    left: 0;
+    inset-inline-start: 0;
     width: auto;
     max-height: 82dvh;
     border-width: 1px 0 0;

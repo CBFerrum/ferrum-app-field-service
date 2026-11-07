@@ -1,0 +1,1 @@
+import{ac as n,b3 as t,k as a,br as r,b2 as i}from"./index-IRo51Nnt.js";function o(){const s=n().data?.user,e=t(s);return a.jsxs("nav",{className:"fs-tabs","aria-label":"Field Service",children:[e&&a.jsx(r,{to:"/dispatch",children:"Dispatch"}),s&&(i(s)||!e)&&a.jsx(r,{to:"/day",children:"My day"})]})}export{o as T};
