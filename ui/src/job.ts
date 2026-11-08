@@ -91,8 +91,8 @@ export function gaps(doc: { checklist?: CheckRow[] | null; customer_signature?: 
   const left = progress(doc.checklist ?? []).requiredLeft;
   if (rules.require_checklist && left) out.push({ text: (left === 1 ? t("1 required task is not done") : t("{left} required tasks are not done", { left })), section: "checklist" });
   if (rules.require_signature) {
-    if (!doc.customer_signature) out.push({ text: "The customer has not signed", section: "signoff" });
-    if (!doc.signed_by?.trim()) out.push({ text: "Who signed is not written down", section: "signoff" });
+    if (!doc.customer_signature) out.push({ text: t("The customer has not signed"), section: "signoff" });
+    if (!doc.signed_by?.trim()) out.push({ text: t("Who signed is not written down"), section: "signoff" });
   }
   return out;
 }
@@ -228,11 +228,11 @@ export function history(doc: {
     const at = iso ? Date.parse(iso) : NaN;
     if (Number.isFinite(at)) out.push({ at, text });
   };
-  mark(doc.reported_at, "Problem reported");
-  mark(doc.travel_started_at, "Technician set off");
-  mark(doc.arrived_at, "Technician arrived on site");
+  mark(doc.reported_at, t("Problem reported"));
+  mark(doc.travel_started_at, t("Technician set off"));
+  mark(doc.arrived_at, t("Technician arrived on site"));
   mark(doc.signed_at, `Signed${doc.signed_by ? t(" by {signed_by}", { signed_by: doc.signed_by }) : ""}`);
-  mark(doc.completed_at, "Job completed");
-  mark(doc.cancelled_at, "Job cancelled");
+  mark(doc.completed_at, t("Job completed"));
+  mark(doc.cancelled_at, t("Job cancelled"));
   return out.sort((a, b) => a.at - b.at);
 }

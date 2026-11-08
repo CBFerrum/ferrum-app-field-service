@@ -36,7 +36,7 @@ export async function perform(w: Waiting): Promise<void> {
     case "sign":
     case "photo": {
       const blob = await blobStore()?.get(w.blob);
-      if (!blob) throw new Error(w.action === "sign" ? "the signature's picture is no longer on this phone" : "the photo is no longer on this phone");
+      if (!blob) throw new Error(w.action === "sign" ? t("the signature's picture is no longer on this phone") : t("the photo is no longer on this phone"));
       const name = w.action === "sign" ? "signature.png" : w.file_name;
       const stored = await uploadFile(new File([blob], name, { type: blob.type || "image/png" }), { entity: "ServiceWorkOrder", id });
       if (w.action === "sign") {

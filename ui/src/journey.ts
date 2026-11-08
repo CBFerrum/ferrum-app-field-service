@@ -85,12 +85,12 @@ export function waiting(status: string | null | undefined): string | null {
   switch (status) {
     case "New":
     case "Scheduled":
-      return "Waiting for the dispatcher to send this job.";
+      return t("Waiting for the dispatcher to send this job.");
     case "Completed":
     case "Invoiced":
-      return "Done.";
+      return t("Done.");
     case "Cancelled":
-      return "This job was cancelled.";
+      return t("This job was cancelled.");
     default:
       return null;
   }
@@ -140,6 +140,6 @@ export function changes(before: Seen[], after: Seen[], zone: string): string[] {
 export function rescheduled(before: Record<string, unknown> | undefined, after: Record<string, unknown>, zone: string): string | null {
   if (!before || (before.scheduled_start === after.scheduled_start && before.scheduled_end === after.scheduled_end)) return null;
   const [a, z] = [Date.parse(String(after.scheduled_start ?? "")), Date.parse(String(after.scheduled_end ?? ""))];
-  if (!Number.isFinite(a) || !Number.isFinite(z)) return "The dispatcher took this job off the schedule.";
+  if (!Number.isFinite(a) || !Number.isFinite(z)) return t("The dispatcher took this job off the schedule.");
   return t("The dispatcher moved this job to {value}, {a}–{z}.", { value: dayLabel(dayOf(a, zone)), a: clock(a, zone), z: clock(z, zone) });
 }

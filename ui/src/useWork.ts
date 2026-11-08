@@ -103,7 +103,7 @@ export function useWork(id: string) {
       const before = applied(qc.getQueryData<Doc>(key) ?? ({} as Doc), mine());
       // While steps wait, a new one waits behind them, so they all go in the order they were done.
       if (waiting().length) {
-        if (!keepChange(before, fields, shown)) return Promise.resolve({ ok: false, fields: [], message: "This phone cannot keep the change." });
+        if (!keepChange(before, fields, shown)) return Promise.resolve({ ok: false, fields: [], message: t("This phone cannot keep the change.") });
         void flush(qc).then(reheld);
         return Promise.resolve({ ok: true, fields: [], held: true });
       }
@@ -156,13 +156,13 @@ export function useWork(id: string) {
       await queue.current.add(async () => true);
       const holdable = (HELD_ACTIONS as readonly string[]).includes(action);
       const keep = () => {
-        const what = action === "complete" ? "Completed" : action === "arrive" ? "On site" : "On your way";
+        const what = action === "complete" ? t("Completed") : action === "arrive" ? t("On site") : t("On your way");
         const ok = hold({ work_order: id, action: action as (typeof HELD_ACTIONS)[number], at: new Date().toISOString(), label: label(what) });
         reheld();
         return ok;
       };
       if (holdable && waiting().length) {
-        if (!keep()) return { ok: false, fields: [], message: "This phone cannot keep it." };
+        if (!keep()) return { ok: false, fields: [], message: t("This phone cannot keep it.") };
         void flush(qc).then(reheld);
         return { ok: true, fields: [], held: true };
       }

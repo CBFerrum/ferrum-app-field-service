@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { api, bootstrap, todayIso, t as tr, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, EmptyState, ErrorState, Icon, Spinner, toast, useLiveEntity, useShellTitle } from "@ferrum/kit";
+import { Alert, Badge, Button, EmptyState, ErrorState, Icon, Spinner, toast, useLiveEntity, useShellTitle, placed } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
 import { act, loadBoard, reason } from "./api";
 import type { Board, Lane } from "./board";
@@ -53,11 +53,11 @@ export function StopCard({ stop, zone, now, current, busy, onGo }: { stop: Stop;
       <h2 className="fs-stop-title">
         <Link to={path}>{isolate(customer)}</Link>
       </h2>
-      <p className="fs-stop-sub">{isolate([v.work_order_number, job?.work_type, `${span(length * MINUTE)} planned`].filter(Boolean).join(" · "))}</p>
+      <p className="fs-stop-sub">{isolate([v.work_order_number, job?.work_type, tr("{value} planned", { value: span(length * MINUTE) })].filter(Boolean).join(" · "))}</p>
       {job?.site_address && <p className="fs-stop-address">{isolate(job.site_address)}</p>}
       {v.travel && v.travel.minutes > 0 && (
         <p className="fs-stop-travel">
-          <Icon name="timeline" size={13} /> {tr("About")} {isolate(span(v.travel.minutes * MINUTE))} {tr("to get there ({km} km from", { km: v.travel.km })} {v.travel.from === "home" ? tr("where you start") : tr("your last job")})
+          <Icon name="timeline" size={13} /> {placed(tr("About {p1} to get there ({km} km from {p2}"), { p1: isolate(span(v.travel.minutes * MINUTE)), km: v.travel.km, p2: v.travel.from === "home" ? tr("where you start") : tr("your last job") })})
         </p>
       )}
       {job?.description && <p className="fs-stop-problem">{isolate(job.description)}</p>}
@@ -190,7 +190,7 @@ export function Day() {
     try {
       // Behind steps already waiting, it waits too, so they all go in the order taken.
       if (heldSteps().length) {
-        if (!keep()) throw new Error("This phone cannot keep it.");
+        if (!keep()) throw new Error(tr("This phone cannot keep it."));
         setHeld(heldSteps());
         void flush(qc).then(() => setHeld(heldSteps()));
         return;
@@ -260,7 +260,10 @@ export function Day() {
           <Tabs />
           <p className="page-sub" aria-live="polite">
             {q.data?.lane && arranged && count
-              ? tr("{day} · {todo} {value} to do{value2}", { day: dayLabel(day, { weekday: "long", day: "numeric", month: "long" }), todo, value: todo === 1 ? "job" : "jobs", value2: first ? `, from ${clock(Date.parse(first.visit.start), zone)}` : "" })
+              ? ((d: string, from: string | null) =>
+                  from
+                    ? todo === 1 ? tr("{day} · 1 job to do, from {from}", { day: d, from }) : tr("{day} · {todo} jobs to do, from {from}", { day: d, todo, from })
+                    : todo === 1 ? tr("{day} · 1 job to do", { day: d }) : tr("{day} · {todo} jobs to do", { day: d, todo }))(dayLabel(day, { weekday: "long", day: "numeric", month: "long" }), first ? clock(Date.parse(first.visit.start), zone) : null)
               : dayLabel(day, { weekday: "long", day: "numeric", month: "long" })}
           </p>
         </div>
@@ -279,7 +282,7 @@ export function Day() {
       {q.error && q.data && <Stale error={q.error} onRetry={() => void q.refetch()} />}
       {q.data?.offline && (
         <Alert tone="info" action={<Button size="sm" icon="refresh" onClick={() => void q.refetch()}>{tr("Try again")}</Button>}>
-          {tr("No connection: your day as it was at")} {isolate(clock(Date.parse(q.data.offline), zone))}{tr(". What you do is sent when the connection is back.")}
+          {placed(tr("No connection: your day as it was at {p1}. What you do is sent when the connection is back."), { p1: isolate(clock(Date.parse(q.data.offline), zone)) })}
         </Alert>
       )}
       {held.length > 0 && (

@@ -244,8 +244,8 @@ export interface Load {
 export function load(lane: Pick<Lane, "booked_hours" | "available_hours">): Load {
   const booked = hours(lane.booked_hours);
   const available = lane.available_hours === null ? null : hours(lane.available_hours);
-  if (available === null) return { booked, available, ratio: 0, over: false, text: booked ? tr("{booked} h booked", { booked: trim(booked) }) : "Free" };
-  if (available === 0) return { booked, available, ratio: booked ? 1 : 0, over: booked > 0, text: booked ? tr("{booked} h booked on a day off", { booked: trim(booked) }) : "Not working" };
+  if (available === null) return { booked, available, ratio: 0, over: false, text: booked ? tr("{booked} h booked", { booked: trim(booked) }) : tr("Free") };
+  if (available === 0) return { booked, available, ratio: booked ? 1 : 0, over: booked > 0, text: booked ? tr("{booked} h booked on a day off", { booked: trim(booked) }) : tr("Not working") };
   return { booked, available, ratio: Math.min(1, booked / available), over: booked > available, text: tr("{booked} of {available} h", { booked: trim(booked), available: trim(available) }) };
 }
 
