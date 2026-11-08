@@ -118,7 +118,7 @@ export function Parts({ ctx }: { ctx: Ctx }) {
     if (out.ok) reset();
   };
   const remove = async (r: PartRow) => {
-    const ok = await confirmDialog({ title: tr("Remove {value}?", { value: r.item_name ?? "this part" }), message: tr("It is taken off the job and will not leave your stock."), confirmLabel: tr("Remove"), danger: true });
+    const ok = await confirmDialog({ title: tr("Remove {value}?", { value: r.item_name ?? tr("this part") }), message: tr("It is taken off the job and will not leave your stock."), confirmLabel: tr("Remove"), danger: true });
     if (ok) void ctx.save({ parts: ids(rows.filter((x) => x.id !== r.id)) }, { parts: rows.filter((x) => x.id !== r.id) });
   };
   return (
@@ -359,7 +359,7 @@ export function Time({ ctx }: { ctx: Ctx }) {
             <Field label={tr("Started")} htmlFor="time-from" required>
               <input id="time-from" className="input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} />
             </Field>
-            <Field label={tr("Finished")} htmlFor="time-to" required error={ahead ? "That is still to come: record time once it is worked." : fromAt != null && toAt != null && toAt <= fromAt ? "Finish after the start." : undefined}>
+            <Field label={tr("Finished")} htmlFor="time-to" required error={ahead ? tr("That is still to come: record time once it is worked.") : fromAt != null && toAt != null && toAt <= fromAt ? tr("Finish after the start.") : undefined}>
               <input id="time-to" className="input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} />
             </Field>
             <label className="fs-switch">

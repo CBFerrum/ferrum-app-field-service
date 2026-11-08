@@ -137,7 +137,7 @@ export function Dispatch() {
   const jobs = useMemo(() => (board ? queueFilter(board.unscheduled, { skill, q: search }) : []), [board, skill, search]);
   const skills = useMemo(() => (board ? skillsAsked(board.unscheduled) : []), [board]);
   const toSend = useMemo(() => (board ? undispatched(board) : []), [board]);
-  const laneName = (id: string) => board?.technicians.find((l) => l.technician === id)?.technician_name ?? "the technician";
+  const laneName = (id: string) => board?.technicians.find((l) => l.technician === id)?.technician_name ?? tr("the technician");
   // The block the arrow keys start from: the one last used, if it is still on the board.
   const roving = useMemo(() => {
     const all = board?.technicians.flatMap((l) => l.appointments) ?? [];
@@ -240,7 +240,7 @@ export function Dispatch() {
     if (!toSend.length || sending) return;
     const n = toSend.length;
     const ok = await confirmDialog({
-      title: tr("Dispatch {n} {value}?", { n, value: n === 1 ? "visit" : "visits" }),
+      title: (n === 1 ? tr("Dispatch {n} visit?", { n }) : tr("Dispatch {n} visits?", { n })),
       message: tr("Each technician is told. Customers with an email on file get their visit window."),
       confirmLabel: tr("Dispatch"),
     });
@@ -259,8 +259,8 @@ export function Dispatch() {
     }
     setSending(false);
     settle();
-    if (failed.length) toast(tr("Dispatched {done} of {n}. {value}{value2}", { done, n, value: failed[0], value2: failed.length > 1 ? ` (${failed.length - 1} more were refused)` : "" }), "error");
-    else toast(tr("Dispatched {done} {value}.", { done, value: done === 1 ? "visit" : "visits" }));
+    if (failed.length) toast((failed.length > 1 ? tr("Dispatched {done} of {n}. {value} ({value1} more were refused)", { done, n, value: failed[0], value1: failed.length - 1 }) : tr("Dispatched {done} of {n}. {value}", { done, n, value: failed[0] })), "error");
+    else toast((done === 1 ? tr("Dispatched {done} visit.", { done }) : tr("Dispatched {done} visits.", { done })));
   };
 
   // ── the pointer ──
@@ -467,8 +467,7 @@ export function Dispatch() {
             <details className="fs-keys">
               <summary>{tr("Keyboard and touch")}</summary>
               <p>
-                {tr("Arrow keys move between jobs, Enter opens one. On a waiting job, S schedules it to the best technician; on a block, M moves it and D dispatches it. Drag with a mouse; on a touch screen or without one, choose a job and use its drawer.")}
-                {canPlan ? tr(" Hold Alt while dropping a visit to add the technician instead of moving it.") : ""}
+                {(canPlan ? tr("Arrow keys move between jobs, Enter opens one. On a waiting job, S schedules it to the best technician; on a block, M moves it and D dispatches it. Drag with a mouse; on a touch screen or without one, choose a job and use its drawer. Hold Alt while dropping a visit to add the technician instead of moving it.") : tr("Arrow keys move between jobs, Enter opens one. On a waiting job, S schedules it to the best technician; on a block, M moves it and D dispatches it. Drag with a mouse; on a touch screen or without one, choose a job and use its drawer."))}
               </p>
             </details>
           </>
@@ -508,7 +507,12 @@ export function Dispatch() {
           <h1 className="sr-only">{tr("Dispatch")}</h1>
           <Tabs />
           <p className="page-sub" aria-live="polite">
-            {board ? tr("{value} · {length} {value2} · {length2} waiting{value3}", { value: week ? `Week of ${dayLabel(first, { day: "numeric", month: "long" })}` : dayLabel(day, { weekday: "long", day: "numeric", month: "long" }), length: lanes.length, value2: lanes.length === 1 ? "technician" : "technicians", length2: board.unscheduled.length, value3: booked ? ` · ${Math.round(booked * 10) / 10} h booked` : "" }) : " "}
+            {board ? [
+                week ? tr("Week of {date}", { date: dayLabel(first, { day: "numeric", month: "long" }) }) : dayLabel(day, { weekday: "long", day: "numeric", month: "long" }),
+                lanes.length === 1 ? tr("1 technician") : tr("{n} technicians", { n: lanes.length }),
+                tr("{n} waiting", { n: board.unscheduled.length }),
+                ...(booked ? [tr("{hours} h booked", { hours: Math.round(booked * 10) / 10 })] : []),
+              ].join(" · ") : " "}
           </p>
         </div>
         <div className="fs-tools">

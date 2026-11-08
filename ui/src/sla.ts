@@ -34,12 +34,12 @@ export function slaChip(w: SlaFields, now: number, zone: string): Chip | null {
   const running = responded ? w.resolution_due : w.response_due;
   const due = running ? Date.parse(running) : NaN;
   const title = Number.isFinite(due) ? (responded ? t("Resolution due {when}", { when: stamp(due, zone) }) : t("Response due {when}", { when: stamp(due, zone) })) : t("Service level: {status}", { status });
-  if (status === "Met") return { tone: "green", text: "Service level met", title };
+  if (status === "Met") return { tone: "green", text: t("Service level met"), title };
   if (status === "Breached") {
-    if (done) return { tone: "red", text: w.resolution_breached ? "Finished late" : "Arrived late", title };
-    if (responded && !w.resolution_breached) return { tone: "red", text: "Arrived late", title };
+    if (done) return { tone: "red", text: w.resolution_breached ? t("Finished late") : t("Arrived late"), title };
+    if (responded && !w.resolution_breached) return { tone: "red", text: t("Arrived late"), title };
     if (Number.isFinite(due) && now > due) return { tone: "red", text: t("{value} overdue", { value: span(now - due) }), title };
-    return { tone: "red", text: "Service level missed", title };
+    return { tone: "red", text: t("Service level missed"), title };
   }
   const left = Number.isFinite(due) ? due - now : null;
   const goal = responded ? "Finish" : "Arrive";

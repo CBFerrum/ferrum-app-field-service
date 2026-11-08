@@ -151,7 +151,7 @@ export function JobSheet({ v }: { v: View }) {
           <span role="status">
             {v.offline ? t("No connection: this job as this phone kept it at {value}. ", { value: clock(Date.parse(v.offline), ctx.zone) }) : ""}
             {v.held
-              ? t("{value} on this phone, and {value2} when the connection is back.", { value: v.held === 1 ? "One step waits" : `${v.held} steps wait`, value2: v.held === 1 ? "goes" : "go" })
+              ? (v.held === 1 ? t("{value} on this phone, and goes when the connection is back.", { value: v.held === 1 ? t("One step waits") : `${v.held} steps wait` }) : t("{value} on this phone, and go when the connection is back.", { value: v.held === 1 ? t("One step waits") : `${v.held} steps wait` }))
               : t("What you do is kept on this phone and sent when the connection is back.")}
           </span>
         </Alert>
@@ -188,7 +188,7 @@ export function JobSheet({ v }: { v: View }) {
         {(equipment || text(doc.serial_no)) && (
           <p>
             <span className="faint">{t("Equipment")} </span>
-            {isolate([equipment, text(doc.serial_no) && `serial ${text(doc.serial_no)}`].filter(Boolean).join(", "))}
+            {isolate([equipment, text(doc.serial_no) && t("serial {serial_no}", { serial_no: text(doc.serial_no) ?? "" })].filter(Boolean).join(", "))}
             {doc.under_warranty === true && (
               <>
                 {isolate(" ")}

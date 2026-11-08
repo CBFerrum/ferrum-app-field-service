@@ -1,0 +1,1 @@
+import{Y as n,aL as i,l as a,b6 as t,t as e,aK as c}from"./index-OniOCX2c.js";function o(){const s=n().data?.user,r=i(s);return a.jsxs("nav",{className:"fs-tabs","aria-label":e("Field Service"),children:[r&&a.jsx(t,{to:"/dispatch",children:e("Dispatch")}),s&&(c(s)||!r)&&a.jsx(t,{to:"/day",children:e("My day")})]})}export{o as T};

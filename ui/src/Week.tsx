@@ -37,12 +37,12 @@ export function Week({ board, first, today, onOpen }: { board: Board; first: str
               </th>
               {cells.map((c) => {
                 const off = c.available === 0 && !c.visits;
-                const text = off ? "Off" : c.available === null ? (c.booked ? `${hoursText(c.booked)} h` : "Free") : t("{value} of {value2} h", { value: hoursText(c.booked), value2: hoursText(c.available) });
+                const text = off ? t("Off") : c.available === null ? (c.booked ? `${hoursText(c.booked)} h` : t("Free")) : t("{value} of {value2} h", { value: hoursText(c.booked), value2: hoursText(c.available) });
                 const jobs = c.visits ? `${c.visits} ${c.visits === 1 ? "job" : "jobs"}` : "";
                 const ratio = c.available ? Math.min(1, c.booked / c.available) : c.booked ? 1 : 0;
                 return (
                   <td key={c.day} data-today={c.day === today || undefined} data-off={off || undefined} data-over={c.over || undefined}>
-                    <button type="button" onClick={() => onOpen(c.day)} aria-label={t("{technician_name}, {value}: {text}{value2}{value3}. Open the day", { technician_name: lane.technician_name, value: dayLabel(c.day, { weekday: "long", day: "numeric", month: "long" }), text, value2: jobs ? `, ${jobs}` : "", value3: c.over ? ", booked past their hours" : "" })}>
+                    <button type="button" onClick={() => onOpen(c.day)} aria-label={t("{technician_name}, {day}: {details}. Open the day", { technician_name: lane.technician_name, day: dayLabel(c.day, { weekday: "long", day: "numeric", month: "long" }), details: [text, ...(jobs ? [jobs] : []), ...(c.over ? [t("booked past their hours")] : [])].join(", ") })}>
                       <strong>{isolate(text)}</strong>
                       {jobs && <small>{isolate(jobs)}</small>}
                       {!off && (

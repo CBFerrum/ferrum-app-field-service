@@ -25,7 +25,7 @@ interface Attachment {
 async function picture(path: string): Promise<Blob> {
   if (!path.startsWith("held:")) return fetchBlob(path);
   const kept = await blobStore()?.get(path.slice("held:".length));
-  if (!kept) throw new Error("This picture is no longer on this phone.");
+  if (!kept) throw new Error(t("This picture is no longer on this phone."));
   return kept;
 }
 
@@ -139,7 +139,7 @@ export function Photos({ ctx }: { ctx: Ctx }) {
         const keep = () => keepPicture(ctx, small, (blob) => ({ work_order: ctx.id, action: "photo", blob, file_name: small.name, at: new Date().toISOString(), label: t("A photo of the job ({name})", { name: small.name }) }));
         // Behind steps already waiting, or without a connection: it waits on this phone.
         if (waiting().length) {
-          if (!(await keep())) throw new Error("This phone cannot keep the photo.");
+          if (!(await keep())) throw new Error(t("This phone cannot keep the photo."));
           waits++;
           continue;
         }
@@ -150,7 +150,7 @@ export function Photos({ ctx }: { ctx: Ctx }) {
           waits++;
         }
       }
-      if (waits) toast(t("No connection: {value} on this phone, and {value2} sent when the connection is back.", { value: waits === 1 ? "the photo waits" : `${waits} photos wait`, value2: waits === 1 ? "is" : "are" }));
+      if (waits) toast((waits === 1 ? t("No connection: {value} on this phone, and is sent when the connection is back.", { value: waits === 1 ? t("the photo waits") : `${waits} photos wait` }) : t("No connection: {value} on this phone, and are sent when the connection is back.", { value: waits === 1 ? t("the photo waits") : `${waits} photos wait` })));
       void qc.invalidateQueries({ queryKey: key });
     } catch (e) {
       toast(reason(e), "error");
@@ -220,7 +220,7 @@ export function Signoff({ ctx }: { ctx: Ctx }) {
     try {
       // Behind steps already waiting, or without a connection: the signature waits on this phone.
       if (waiting().length) {
-        if (!(await keep())) throw new Error("This phone cannot keep the signature.");
+        if (!(await keep())) throw new Error(t("This phone cannot keep the signature."));
         setAgain(false);
         toast(t("Signed: kept on this phone, and sent when the connection is back."));
         return;
@@ -248,7 +248,7 @@ export function Signoff({ ctx }: { ctx: Ctx }) {
       </Field>
       {signature && !again && (
         <div className="fs-signed">
-          {image.url ? <img src={image.url} alt={t("Signature of {value}", { value: signedBy || "the customer" })} /> : <Spinner small />}
+          {image.url ? <img src={image.url} alt={t("Signature of {value}", { value: signedBy || t("the customer") })} /> : <Spinner small />}
           <p>
             {t("Signed by")} <strong>{signedBy || t("the customer")}</strong>
             {signedAt ? `, ${dayLabel(dayOf(Date.parse(signedAt), ctx.zone))} ${clock(Date.parse(signedAt), ctx.zone)}` : ""}
@@ -265,7 +265,7 @@ export function Signoff({ ctx }: { ctx: Ctx }) {
           <Field label={t("Name of the person signing")} htmlFor="signed-by" required>
             <input id="signed-by" className="input" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
-          <SignaturePad busy={busy} blocked={name.trim() ? undefined : "Write who is signing first"} onSave={(png) => void sign(png)} />
+          <SignaturePad busy={busy} blocked={name.trim() ? undefined : t("Write who is signing first")} onSave={(png) => void sign(png)} />
         </div>
       )}
       {!signature && !ctx.editable && <p className="muted">{t("The customer did not sign.")}</p>}

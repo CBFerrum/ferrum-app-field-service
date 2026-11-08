@@ -43,7 +43,7 @@ export interface LaneOps {
 /** Pixels of height for one stack of blocks in a lane. */
 const ROW = 52;
 
-const TAG: Record<string, string> = { Scheduled: "Needs dispatch", "En Route": "On the way", "On Site": "On site", Completed: "Done", "Cannot Complete": "Not finished" };
+const TAG: Record<string, string> = { get Scheduled() { return tr("Needs dispatch"); }, get "En Route"() { return tr("On the way"); }, get "On Site"() { return tr("On site"); }, get Completed() { return tr("Done"); }, get "Cannot Complete"() { return tr("Not finished"); } };
 
 const slug = (status: string) => status.toLowerCase().replace(/\s+/g, "-");
 

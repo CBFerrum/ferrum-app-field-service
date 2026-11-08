@@ -181,7 +181,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
             {isolate(text(doc.number) ?? "")} · {text(doc.customer_name) ?? tr("Customer")}
           </h1>
           <p className="page-sub">
-            {isolate([text(doc.work_type), text(doc.priority) && `${doc.priority} priority`, text(doc.reported_at) && `reported ${stamp(Date.parse(String(doc.reported_at)), zone)}`].filter(Boolean).join(" · "))}
+            {isolate([text(doc.work_type), text(doc.priority) && tr("{priority} priority", { priority: String(doc.priority) }), text(doc.reported_at) && tr("reported {value}", { value: stamp(Date.parse(String(doc.reported_at)), zone) })].filter(Boolean).join(" · "))}
           </p>
         </div>
         <div className="page-actions">
@@ -312,7 +312,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                         {text(doc.serial_no) && <span className="faint"> {tr("· serial")} {isolate(text(doc.serial_no) ?? "")}</span>}
                         {equipment.data && (
                           <p className="faint">
-                            {isolate([text(equipment.data.warranty_end) && `warranty until ${formatDate(equipment.data.warranty_end)}`, text(equipment.data.last_service_date) && `last serviced ${formatDate(equipment.data.last_service_date)}`].filter(Boolean).join(" · "))}
+                            {isolate([text(equipment.data.warranty_end) && tr("warranty until {warranty_end}", { warranty_end: formatDate(equipment.data.warranty_end) }), text(equipment.data.last_service_date) && tr("last serviced {last_service_date}", { last_service_date: formatDate(equipment.data.last_service_date) })].filter(Boolean).join(" · "))}
                           </p>
                         )}
                       </dd>
