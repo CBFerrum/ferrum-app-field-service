@@ -134,6 +134,7 @@
   "From Time": "من وقت",
   "From the report until the technician is on site": "من البلاغ حتى يصل الفني إلى الموقع",
   "From the report until the work order is completed": "من البلاغ حتى إكمال أمر العمل",
+  "Group By": "التجميع حسب",
   "HH:MM, 24-hour clock, local time": "HH:MM، نظام 24 ساعة، بالتوقيت المحلي",
   "HH:MM; 24:00 = midnight. A night shift is one row per day, e.g. Monday 22:00-24:00 and Tuesday 00:00-06:00": "HH:MM؛ 24:00 = منتصف الليل. الوردية الليلية صف واحد لكل يوم، مثل الاثنين 22:00-24:00 والثلاثاء 00:00-06:00",
   "Helpdesk": "مكتب المساعدة",
