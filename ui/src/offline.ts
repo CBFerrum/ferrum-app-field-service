@@ -6,8 +6,11 @@
 // customer's signature and photos (their pictures in IndexedDB); and completing the job. It is sent
 // in the order taken when the connection is back. A change goes as what it does (a row ticked, a row
 // added or taken out, a field set), made again on the job as it stands then, so nobody else's change
-// to it is undone; one the server refuses is dropped and said why, and the job is not completed
-// after it, so it stays open to be put right.
+// to it is undone. Each step carries its key to the server, which does it once however often it comes
+// (an answer lost after the server did it, a reload, a second tab), and a row added carries its ref
+// (`client_ref`), so it is never added twice. A step the server refuses is kept, with its pictures,
+// until the technician tries it again or discards it, which is confirmed and noted on the job; until
+// then the job is not completed, even after a reload.
 
 import { cacheName, offlineEnv, pendingName, renewOfflineLease, sweep } from "@ferrum/client";
 
@@ -117,7 +120,8 @@ type Row = Record<string, unknown> & { id?: string };
 type Job = Record<string, unknown>;
 
 /** What a change does, so it can be made again on the job as it stands later. An added row has the
- *  `ref` (`new-…`) the page shows it under until the server gives it an id. */
+ *  `ref` (`new-…`) the page shows it under until the server gives it an id, and goes with it as its
+ *  `client_ref`; a row taken out is named by its id or, added here, by that ref. */
 export type Edit =
   | { kind: "tick"; row: string; done: boolean }
   | { kind: "add"; table: Table; row: Row; ref: string }
@@ -147,7 +151,8 @@ export function edits(before: Job, fields: Record<string, unknown>, shown: Recor
       let n = 0;
       for (const r of value as Row[]) {
         if (idOf(r)) continue;
-        out.push({ kind: "add", table, row: r, ref: refs[n++] ?? `new-${Date.now()}-${n}` });
+        const ref = refs[n++] ?? `new-${Date.now()}-${n}`;
+        out.push({ kind: "add", table, row: { ...r, client_ref: ref }, ref });
       }
       for (const id of had) if (!kept.has(id)) out.push({ kind: "remove", table, row: id });
     } else {
@@ -157,12 +162,29 @@ export function edits(before: Job, fields: Record<string, unknown>, shown: Recor
   return out;
 }
 
+/** `fields` as the page sends them, each new row with its ref (`client_ref`) from `list`, so that
+ *  sent again after an answer was lost it is not added twice. */
+export function withRefs(fields: Record<string, unknown>, list: Edit[]): Record<string, unknown> {
+  const out = { ...fields };
+  for (const table of TABLES) {
+    if (!Array.isArray(out[table])) continue;
+    const refs = list.filter((e): e is Extract<Edit, { kind: "add" }> => e.kind === "add" && e.table === table).map((e) => e.ref);
+    let n = 0;
+    out[table] = (out[table] as Row[]).map((r) => (idOf(r) ? r : { ...r, client_ref: refs[n++] }));
+  }
+  return out;
+}
+
+/** What an action's key is bound to: the step and when it was taken, whatever else its body carries. */
+export const actionDigest = (action: string, at: string) => `${action}@${at}`;
+
 /** The fields to send for `list` on the job as it stands now (by id, so rows someone else added
- *  stay); null when nothing is left to change. */
+ *  stay); null when nothing is left to change. A row already on the job under its ref is not added
+ *  again, and one taken out by its ref is found by it. */
 export function patchFor(job: Job, list: Edit[]): Record<string, unknown> | null {
   const out: Record<string, unknown> = {};
   const tables = new Map<string, Row[]>();
-  const table = (name: string) => tables.get(name) ?? rows(job, name).map((r) => ({ id: r.id, done: r.done }));
+  const table = (name: string) => tables.get(name) ?? rows(job, name).map((r) => ({ id: r.id, done: r.done, client_ref: r.client_ref }));
   let changed = false;
   for (const e of list) {
     if (e.kind === "tick") {
@@ -171,12 +193,14 @@ export function patchFor(job: Job, list: Edit[]): Record<string, unknown> | null
       tables.set("checklist", list.map((r) => (r.id === e.row ? { ...r, done: e.done } : r)));
       changed = true;
     } else if (e.kind === "add") {
+      if (table(e.table).some((r) => r.client_ref === e.ref)) continue;
       tables.set(e.table, [...table(e.table), e.row]);
       changed = true;
     } else if (e.kind === "remove") {
       const list = table(e.table);
-      if (!list.some((r) => r.id === e.row)) continue;
-      tables.set(e.table, list.filter((r) => r.id !== e.row));
+      const gone = (r: Row) => r.id === e.row || (r.client_ref !== undefined && r.client_ref === e.row);
+      if (!list.some(gone)) continue;
+      tables.set(e.table, list.filter((r) => !gone(r)));
       changed = true;
     } else {
       out[e.field] = e.value;
@@ -191,18 +215,23 @@ export function patchFor(job: Job, list: Edit[]): Record<string, unknown> | null
 
 /** A step taken offline, waiting to be sent. */
 export type Waiting = {
+  /** Its key at the server: the same on every try, so it is done once. */
   key: string;
   work_order: string;
   /** When it was taken. */
   at: string;
   /** What it was, as the technician read it. */
   label: string;
+  /** Sent at least once: the server may have done it, though no answer came. */
+  tried?: boolean;
 } & (
   | { action: "start_travel" | "arrive" | "complete" }
   | { action: "save"; edits: Edit[] }
   /** The signature's picture waits in IndexedDB under `blob`. */
   | { action: "sign"; blob: string; signed_by: string }
   | { action: "photo"; blob: string; file_name: string }
+  /** A note on the job, such as a step discarded here and why. */
+  | { action: "note"; text: string }
 );
 
 type Without<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -231,24 +260,90 @@ function save(list: Waiting[], store = storage()): boolean {
 
 let seq = 0;
 
-/** Keeps a step to send later; false when the device cannot keep it (then it was not taken). */
-export function hold(w: Step, store = storage()): boolean {
-  return save([...waiting(store), { ...w, key: `${w.work_order}.${w.action}.${w.at}.${++seq}` } as Waiting], store);
+/** A key no other step of this person on any device has: the job, the step, when, and chance. */
+export function stepKey(w: Pick<Waiting, "work_order" | "action" | "at">): string {
+  return `${w.work_order}.${w.action}.${w.at}.${++seq}.${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Keeps a step to send later; false when the device cannot keep it (then it was not taken). A step
+ *  tried already and kept because no answer came keeps its key (`key`), so the server knows it. */
+export function hold(w: Step & { key?: string }, store = storage()): boolean {
+  return save([...waiting(store), { ...w, key: w.key ?? stepKey(w) } as Waiting], store);
 }
 
 /** A row added offline and taken out again before it was sent: the add goes, and nothing is sent
- *  for either. True when it was such a row. */
+ *  for either. True when it was such a row. Not when its step was tried: the server may hold the
+ *  row, so taking it out is sent too, by its ref. */
 export function forgetAdd(ref: string, store = storage()): boolean {
   let found = false;
   const list = waiting(store)
     .map((w) => {
-      if (w.action !== "save") return w;
+      if (w.action !== "save" || w.tried) return w;
       const left = w.edits.filter((e) => !(e.kind === "add" && e.ref === ref));
       found ||= left.length !== w.edits.length;
       return { ...w, edits: left };
     })
     .filter((w) => w.action !== "save" || w.edits.length > 0);
   return found && save(list, store);
+}
+
+// ───────────────────────────── what the server refused ─────────────────────────────
+
+/** A step the server refused, kept with its pictures until the technician tries it again or
+ *  discards it. Its job is not completed meanwhile. */
+export interface Refusal {
+  step: Waiting;
+  reason: string;
+  /** When it was refused. */
+  at: string;
+}
+
+const refusedName = () => pendingName(offlineEnv(), "field-service", "refused");
+
+export function refusals(store = storage()): Refusal[] {
+  const v = kept<unknown>(refusedName(), store);
+  return Array.isArray(v) ? (v as Refusal[]).filter((r) => typeof r?.step?.key === "string" && typeof r.reason === "string") : [];
+}
+
+function keepRefusals(list: Refusal[], store = storage()): boolean {
+  const name = refusedName();
+  if (!name || !store) return false;
+  try {
+    if (list.length) store.setItem(name, JSON.stringify(list));
+    else store.removeItem(name);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Puts a refused step back at the front of what waits, to be sent again (put right meanwhile, or
+ *  after what was in its way changed). False when there is no such refusal or no room. */
+export function retry(key: string, store = storage()): boolean {
+  const r = refusals(store).find((x) => x.step.key === key);
+  if (!r) return false;
+  // Before anything of its job still waiting, so its job's completion comes after it.
+  const list = waiting(store);
+  const at = list.findIndex((w) => w.work_order === r.step.work_order);
+  const next = at < 0 ? [...list, r.step] : [...list.slice(0, at), r.step, ...list.slice(at)];
+  return save(next, store) && keepRefusals(refusals(store).filter((x) => x.step.key !== key), store);
+}
+
+/** What a refused step was, to save outside the app before it is discarded (its picture apart). */
+export function exported(r: Refusal): string {
+  return JSON.stringify({ app: "field-service", refused_at: r.at, reason: r.reason, step: r.step }, null, 2);
+}
+
+/** Discards a refused step, as the technician confirmed: it and its picture go, and a note saying
+ *  what was discarded and why waits to be sent to the job. False when it cannot be done. */
+export async function discard(key: string, by: string, store = storage(), blobs: Blobs | null = null, now = new Date()): Promise<boolean> {
+  const r = refusals(store).find((x) => x.step.key === key);
+  if (!r) return false;
+  const text = `Discarded on ${by}'s phone: ${r.step.label}, taken ${r.step.at}. The server had refused it: ${r.reason}`;
+  if (!hold({ work_order: r.step.work_order, action: "note", text, at: now.toISOString(), label: `Note: ${r.step.label}` }, store)) return false;
+  if (!keepRefusals(refusals(store).filter((x) => x.step.key !== key), store)) return false;
+  if ((r.step.action === "sign" || r.step.action === "photo") && blobs) await blobs.del(r.step.blob).catch(() => undefined);
+  return true;
 }
 
 const STATUS: Partial<Record<Waiting["action"], string>> = { start_travel: "En Route", arrive: "On Site", complete: "Completed" };
@@ -323,31 +418,44 @@ export function blobStore(): Blobs | null {
 export interface Sent {
   sent: Waiting[];
   refused: { step: Waiting; reason: string }[];
-  /** Completing a job after one of its own steps was refused: not sent, so the job stays open to be put right. */
-  dropped: Waiting[];
+  /** Completing a job one of whose steps was refused and not yet put right: not sent, and still
+   *  waiting, until that step is tried again or discarded. */
+  blocked: Waiting[];
 }
 
 /** Sends what waits, in the order taken, with steps taken meanwhile. Stops at the first that cannot
- *  reach the server (it and the rest wait on); one the server refuses is dropped, with its reason,
- *  and so is completing its job after it. Pictures go from `blobs` once their step is sent or dropped. */
-export async function send(run: (w: Waiting) => Promise<unknown>, explain: (e: unknown) => string, store = storage(), blobs: Blobs | null = null): Promise<Sent> {
-  const out: Sent = { sent: [], refused: [], dropped: [] };
-  const failed = new Set<string>();
-  for (let step = waiting(store)[0]; step; step = waiting(store)[0]) {
+ *  reach the server (it and the rest wait on). One the server refuses is kept with its reason and its
+ *  pictures (`refusals`), and completing its job waits until it is resolved, whatever reloads happen
+ *  meanwhile. Pictures go from `blobs` once their step is sent. */
+export async function send(run: (w: Waiting) => Promise<unknown>, explain: (e: unknown) => string, store = storage(), blobs: Blobs | null = null, now = () => new Date()): Promise<Sent> {
+  const out: Sent = { sent: [], refused: [], blocked: [] };
+  const passed = new Set<string>();
+  for (;;) {
+    const unresolved = new Set(refusals(store).map((r) => r.step.work_order));
+    const step = waiting(store).find((w) => !passed.has(w.key));
+    if (!step) break;
     const { key } = step;
-    if (step.action === "complete" && failed.has(step.work_order)) {
-      out.dropped.push(step);
-    } else {
-      try {
-        await run(step);
-        out.sent.push(step);
-      } catch (e) {
-        if (unreachable(e)) break;
-        out.refused.push({ step, reason: explain(e) });
-        failed.add(step.work_order);
-      }
+    if (step.action === "complete" && unresolved.has(step.work_order)) {
+      passed.add(key);
+      out.blocked.push(step);
+      continue;
     }
-    if ((step.action === "sign" || step.action === "photo") && blobs) await blobs.del(step.blob).catch(() => undefined);
+    // Marked before it goes: if no answer comes, the server may have done it.
+    if (!step.tried && !save(waiting(store).map((w) => (w.key === key ? { ...w, tried: true } : w)), store)) break;
+    let refused = false;
+    try {
+      await run({ ...step, tried: true });
+      out.sent.push(step);
+    } catch (e) {
+      if (unreachable(e)) break;
+      const reason = explain(e);
+      // Kept for the technician, before it leaves what waits; a repeat replaces it.
+      const kept = [...refusals(store).filter((r) => r.step.key !== key), { step: { ...step, tried: true }, reason, at: now().toISOString() }];
+      if (!keepRefusals(kept, store)) break;
+      out.refused.push({ step, reason });
+      refused = true;
+    }
+    if (!refused && (step.action === "sign" || step.action === "photo") && blobs) await blobs.del(step.blob).catch(() => undefined);
     // Only this step goes: one taken while it was sent waits behind the rest.
     if (!save(waiting(store).filter((w) => w.key !== key), store)) break;
   }

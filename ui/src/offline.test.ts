@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ApiError, resetBootstrap } from "@ferrum/client";
 import { fakeBootstrap } from "@ferrum/testing";
-import { applied, type Edit, edits, forgetAdd, hold, keepDay, keptDay, memoryBlobs, patchFor, send, type Step, unreachable, type Waiting, waiting } from "./offline";
+import { applied, discard, type Edit, edits, exported, forgetAdd, hold, keepDay, keptDay, memoryBlobs, patchFor, refusals, retry, send, type Step, unreachable, type Waiting, waiting, withRefs } from "./offline";
 
 function memory() {
   const map = new Map<string, string>();
@@ -33,7 +33,7 @@ describe("the day without a connection", () => {
     expect(keepDay("2026-11-06", { jobs: 2 }, store)).toBe(false);
   });
 
-  it("sends steps in the order taken, waits when unreachable, drops what is refused", async () => {
+  it("sends steps in the order taken, waits when unreachable, keeps what is refused for the technician", async () => {
     const store = memory();
     as({ ...lease, allowed: false, until: null });
     hold({ work_order: "w1", action: "start_travel", at: "2026-11-06T08:00:00Z", label: "On your way to Acme" }, store);
@@ -47,7 +47,7 @@ describe("the day without a connection", () => {
     }, String, store);
     expect(down.sent.map((w) => w.label)).toEqual(["On your way to Acme"]);
     expect(waiting(store).map((w) => w.label)).toEqual(["On site at Acme", "On your way to Globex"]);
-    // Back: one is refused (the job moved meanwhile), and is dropped with its reason.
+    // Back: one is refused (the job moved meanwhile), and is kept with its reason for the technician.
     const refused = new ApiError(422, "invalid", "This job was given to someone else.");
     const back = await send(async (w) => {
       if (w.work_order === "w2") throw refused;
@@ -55,6 +55,7 @@ describe("the day without a connection", () => {
     expect(back.sent.map((w) => w.label)).toEqual(["On site at Acme"]);
     expect(back.refused.map((r) => [r.step.label, r.reason])).toEqual([["On your way to Globex", "This job was given to someone else."]]);
     expect(waiting(store)).toEqual([]);
+    expect(refusals(store).map((r) => [r.step.label, r.reason])).toEqual([["On your way to Globex", "This job was given to someone else."]]);
     expect([unreachable(new TypeError("x")), unreachable({ status: 503 }), unreachable({ status: 401 }), unreachable(refused)]).toEqual([true, true, true, false]);
   });
 });
@@ -78,10 +79,12 @@ describe("a job's changes without a connection", () => {
   it("keeps what a save does, not the rows it sends", () => {
     expect(edits(job, fields, shown)).toEqual([
       { kind: "tick", row: "c1", done: true },
-      { kind: "add", table: "parts", row: { item: "Seal", qty: "2" }, ref: "new-1" },
+      { kind: "add", table: "parts", row: { item: "Seal", qty: "2", client_ref: "new-1" }, ref: "new-1" },
       { kind: "remove", table: "parts", row: "p1" },
       { kind: "set", field: "work_notes", value: "Replaced the seal" },
     ]);
+    // Sent at once, a new row carries its ref too, so a resend after a lost answer finds it.
+    expect(withRefs(fields, edits(job, fields, shown)).parts).toEqual([{ item: "Seal", qty: "2", client_ref: "new-1" }]);
   });
 
   it("makes it again on the job as it stands, without undoing anyone else's change", () => {
@@ -90,10 +93,18 @@ describe("a job's changes without a connection", () => {
     expect(patchFor(now, edits(job, fields, shown))).toEqual({
       work_notes: "Replaced the seal",
       checklist: [{ id: "c1", done: true }],
-      parts: [{ id: "p9" }, { item: "Seal", qty: "2" }],
+      parts: [{ id: "p9" }, { item: "Seal", qty: "2", client_ref: "new-1" }],
     });
     // A tick of a task taken out meanwhile leaves nothing to send.
     expect(patchFor({ ...job, checklist: [] }, [{ kind: "tick", row: "c1", done: true }])).toBeNull();
+  });
+
+  it("adds a row once, whoever sent it first, and takes one out by the ref it was added under (FEO-003)", () => {
+    const add: Edit = { kind: "add", table: "parts", row: { item: "Seal", client_ref: "new-1" }, ref: "new-1" };
+    // Already on the job under its ref (an answer lost after the server added it, or another tab).
+    const there = { ...job, parts: [...job.parts, { id: "p10", item: "Seal", client_ref: "new-1" }] };
+    expect(patchFor(there, [add])).toBeNull();
+    expect(patchFor(there, [{ kind: "remove", table: "parts", row: "new-1" }])).toEqual({ parts: [{ id: "p1" }] });
   });
 
   it("shows the job as the technician left it", () => {
@@ -106,7 +117,7 @@ describe("a job's changes without a connection", () => {
     const left = applied<Job>({ ...job, status: "En Route" }, steps);
     expect(left.status).toBe("On Site");
     expect(left.checklist.map((r) => r.done)).toEqual([true, false]);
-    expect(left.parts).toEqual([{ id: "new-1", item: "Seal", qty: "2" }]);
+    expect(left.parts).toEqual([{ id: "new-1", item: "Seal", qty: "2", client_ref: "new-1" }]);
     expect([left.work_notes, left.customer_signature, left.signed_by, left.signed_at]).toEqual(["Replaced the seal", "held:k1", "Pat Morgan", "2026-11-06T09:20:00Z"]);
   });
 
@@ -146,10 +157,76 @@ describe("a job's changes without a connection", () => {
     );
     expect(runs).toEqual(["Changes: Acme", "A photo", "Signed by Pat", "On site: Globex", "Completed: Globex"]);
     expect(out.refused.map((r) => [r.step.label, r.reason])).toEqual([["Changes: Acme", "The notes are too long."]]);
-    expect(out.dropped.map((w) => w.label)).toEqual(["Completed: Acme"]);
+    expect(out.blocked.map((w) => w.label)).toEqual(["Completed: Acme"]);
     expect(out.sent.map((w) => w.label)).toEqual(["A photo", "Signed by Pat", "On site: Globex", "Completed: Globex"]);
-    expect(waiting(store)).toEqual([]);
+    // Completing Acme waits for the refused change to be put right or discarded.
+    expect(waiting(store).map((w) => w.label)).toEqual(["Completed: Acme"]);
     expect([await blobs.get("sig"), await blobs.get("photo")]).toEqual([undefined, undefined]);
+  });
+
+  it("does not complete a job after a refusal, whatever reloads and lost connections come between (FEO-001)", async () => {
+    // The review's case: a save refused, the next step cut off, the page reloaded, the connection back.
+    const store = memory();
+    as({ ...lease, allowed: false, until: null });
+    hold({ work_order: "w1", action: "save", at: "2026-11-06T09:00:00Z", label: "Changes: Acme", edits: [{ kind: "add", table: "parts", row: { item: "Seal", client_ref: "new-1" }, ref: "new-1" }] }, store);
+    hold({ work_order: "w1", action: "arrive", at: "2026-11-06T09:05:00Z", label: "On site: Acme" }, store);
+    hold({ work_order: "w1", action: "complete", at: "2026-11-06T09:30:00Z", label: "Completed: Acme" }, store);
+    const sent: string[] = [];
+    const refuse = new ApiError(422, "invalid", "Not enough Seal in the van.");
+    const first = await send(async (w) => {
+      if (w.action === "save") throw refuse;
+      throw new TypeError("Failed to fetch");
+    }, (e) => (e as Error).message, store);
+    expect(first.refused.map((r) => r.step.label)).toEqual(["Changes: Acme"]);
+    // Reloaded: nothing of the first send is in memory, only what the phone kept. Connected again:
+    const again = await send(async (w) => void sent.push(w.label), String, store);
+    expect(sent).toEqual(["On site: Acme"]);
+    expect(again.blocked.map((w) => w.label)).toEqual(["Completed: Acme"]);
+    expect(waiting(store).map((w) => w.label)).toEqual(["Completed: Acme"]);
+    // Tried again once put right (stock moved to the van): it goes first, then the completion.
+    expect(retry(refusals(store)[0].step.key, store)).toBe(true);
+    expect(waiting(store).map((w) => w.label)).toEqual(["Changes: Acme", "Completed: Acme"]);
+    await send(async (w) => void sent.push(w.label), String, store);
+    expect(sent).toEqual(["On site: Acme", "Changes: Acme", "Completed: Acme"]);
+    expect([waiting(store), refusals(store)]).toEqual([[], []]);
+  });
+
+  it("marks a step tried before it goes, and then keeps an added row that may have reached the server", async () => {
+    const store = memory();
+    as({ ...lease, allowed: false, until: null });
+    hold({ work_order: "w1", action: "save", at: "2026-11-06T09:00:00Z", label: "Changes", edits: [{ kind: "add", table: "parts", row: { item: "Seal" }, ref: "new-1" }] }, store);
+    await send(async () => Promise.reject(new TypeError("Failed to fetch")), String, store);
+    expect(waiting(store)[0].tried).toBe(true);
+    // Taken out again: the add may be on the server, so it stays, and taking it out is sent too (by its ref).
+    expect(forgetAdd("new-1", store)).toBe(false);
+    expect(waiting(store)[0]).toMatchObject({ action: "save", edits: [{ kind: "add", ref: "new-1" }] });
+  });
+
+  it("keeps refused evidence until the technician decides, and records a discard on the job (FEO-002)", async () => {
+    const store = memory();
+    as({ ...lease, allowed: false, until: null });
+    const blobs = memoryBlobs();
+    await blobs.put("sig", new Blob(["png"]));
+    hold({ work_order: "w1", action: "sign", at: "2026-11-06T09:10:00Z", label: "Signed by Pat", blob: "sig", signed_by: "Pat Morgan" }, store);
+    hold({ work_order: "w1", action: "complete", at: "2026-11-06T09:15:00Z", label: "Completed: Acme" }, store);
+    await send(async (w) => {
+      if (w.action === "sign") throw new ApiError(422, "invalid", "The signature is not an image.");
+    }, (e) => (e as Error).message, store, blobs);
+    // Closed and opened again: the signature and why it was refused are still here.
+    const [r] = refusals(store);
+    expect([r.step.label, r.reason]).toEqual(["Signed by Pat", "The signature is not an image."]);
+    expect(await blobs.get("sig")).toBeInstanceOf(Blob);
+    expect(JSON.parse(exported(r))).toMatchObject({ reason: "The signature is not an image.", step: { action: "sign", signed_by: "Pat Morgan" } });
+    // Discarded, as confirmed: the picture goes, and a note saying so waits for the job, before its completion.
+    expect(await discard(r.step.key, "pat@acme.test", store, blobs, new Date("2026-11-06T10:00:00Z"))).toBe(true);
+    expect(await blobs.get("sig")).toBeUndefined();
+    expect(refusals(store)).toEqual([]);
+    expect(waiting(store).map((w) => w.action)).toEqual(["complete", "note"]);
+    const note = waiting(store)[1];
+    expect(note.action === "note" && note.text).toBe("Discarded on pat@acme.test's phone: Signed by Pat, taken 2026-11-06T09:10:00Z. The server had refused it: The signature is not an image.");
+    const sent: string[] = [];
+    await send(async (w) => void sent.push(w.action), String, store, blobs);
+    expect(sent).toEqual(["complete", "note"]);
   });
 
   it("keeps a picture while its step cannot reach the server", async () => {
