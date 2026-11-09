@@ -5,13 +5,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { api, bootstrap, todayIso, t as tr, isolate } from "@ferrum/client";
+import { api, bootstrap, docPath, todayIso, t as tr, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, EmptyState, ErrorState, Icon, Spinner, toast, useLiveEntity, useShellTitle, placed } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
-import { act, loadBoard, reason } from "./api";
+import { loadBoard, reason } from "./api";
 import type { Board, Lane } from "./board";
 import { flush } from "./held";
-import { hold, keepDay, keptDay, unreachable, waiting as heldSteps, type Waiting } from "./offline";
+import { actionDigest, hold, keepDay, keptDay, refusals, stepKey, unreachable, waiting as heldSteps, type Waiting } from "./offline";
+import { Refused } from "./Refused";
 import { arrange, changes, type Details, directionsUrl, laneOf, nextStep, type Seen, seen, type Stop, telUrl, waiting } from "./journey";
 import { slaChip } from "./sla";
 import { Stale } from "./Stale";
@@ -109,6 +110,7 @@ export function Day() {
   // Offline, the person is the one this page was served to.
   const email = me?.user.email ?? bootstrap()?.person?.email;
   const [held, setHeld] = useState<Waiting[]>(() => heldSteps());
+  const [refused, setRefused] = useState(() => refusals());
   const [sp, setSp] = useSearchParams();
   const day = isDay(sp.get("day")) ? sp.get("day")! : todayIso();
   const [now, setNow] = useState(() => Date.now());
@@ -173,7 +175,11 @@ export function Day() {
   // What was taken offline goes when the server answers again, in the order it was taken.
   const online = !!q.data && !q.data.offline;
   useEffect(() => {
-    const sendHeld = () => void flush(qc).then(() => setHeld(heldSteps()));
+    const sendHeld = () =>
+      void flush(qc).then(() => {
+        setHeld(heldSteps());
+        setRefused(refusals());
+      });
     if (online) sendHeld();
     window.addEventListener("online", sendHeld);
     return () => window.removeEventListener("online", sendHeld);
@@ -185,7 +191,9 @@ export function Day() {
 
   const go = async (stop: Stop, action: "start_travel" | "arrive") => {
     const label = `${action === "start_travel" ? "On your way to" : "On site at"} ${stop.job?.customer_name || stop.visit.customer_name || stop.visit.work_order_number}`;
-    const keep = () => hold({ work_order: stop.visit.work_order, action, at: new Date().toISOString(), label });
+    const at = new Date().toISOString();
+    const key = stepKey({ work_order: stop.visit.work_order, action, at });
+    const keep = (tried = false) => hold({ work_order: stop.visit.work_order, action, at, label, ...(tried ? { key, tried } : {}) });
     setActing(stop.visit.work_order);
     try {
       // Behind steps already waiting, it waits too, so they all go in the order taken.
@@ -195,10 +203,10 @@ export function Day() {
         void flush(qc).then(() => setHeld(heldSteps()));
         return;
       }
-      await act("ServiceWorkOrder", stop.visit.work_order, action);
+      await api.post(docPath("ServiceWorkOrder", stop.visit.work_order, "actions", action), { at }, { idempotencyKey: key, idempotencyDigest: actionDigest(action, at) });
       toast(action === "start_travel" ? tr("On your way. The customer is told if they asked to be.") : tr("You are on site."));
     } catch (e) {
-      if (unreachable(e) && keep()) {
+      if (unreachable(e) && keep(true)) {
         setHeld(heldSteps());
         toast(tr("No connection: it is sent when the connection is back."));
       } else toast(reason(e), "error");
@@ -297,6 +305,19 @@ export function Day() {
           </ul>
         </Alert>
       )}
+      <Refused
+        list={refused}
+        by={email ?? ""}
+        zone={zone}
+        onChange={() => {
+          setRefused(refusals());
+          setHeld(heldSteps());
+          void flush(qc).then(() => {
+            setHeld(heldSteps());
+            setRefused(refusals());
+          });
+        }}
+      />
       {news.length > 0 && (
         <Alert tone="warning" action={<Button size="sm" onClick={() => setNews([])}>{tr("Got it")}</Button>}>
           <strong>{tr("Your dispatcher changed your day.")}</strong>

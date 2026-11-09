@@ -572,6 +572,29 @@ async fn scenario() {
     assert!(!w["labour"][0].as_object().unwrap().contains_key("cost_rate") && !w.contains_key("labour_cost"), "technicians see no costs");
     assert_eq!((dec(&w["labour_hours"]), dec(&w["billable_hours"]), dec(&w["expense_total"])), (n("1.5"), n("1.5"), n("32.5")));
     assert_eq!(dec(&manager.get("ServiceWorkOrder", wo1).await["labour_cost"]), n("45"), "1.5 h at 30");
+    {
+        // From her phone: an expense added under its ref, the answer lost after the server took it, and sent
+        // again after a reload, made again on the job as it stands then (FEO-003). Added once, counted once.
+        let target = format!("PATCH ServiceWorkOrder/{wo1}");
+        let kept: Vec<Value> = w["expenses"].as_array().unwrap().iter().map(|r| json!({"id": r["id"]})).collect();
+        let toll = json!({"expense_type": "Tolls", "amount": "3", "client_ref": "new-17"});
+        let attempt = |rows: Vec<Value>| {
+            let body = obj(json!({"expenses": rows}));
+            let digest = ferrum_kernel::receipt::digest(&target, Some("add Tolls 3 as new-17"), &Value::Object(body.clone()));
+            (body, digest)
+        };
+        let (body, digest) = attempt([kept.clone(), vec![toll.clone()]].concat());
+        let (first, again) = alice_u.k.update_idempotent(&alice_u.ctx, "ServiceWorkOrder", wo1, body, None, "wo1.save.17", &digest).await.expect("sent");
+        assert!(!again);
+        let now_rows: Vec<Value> = first["expenses"].as_array().unwrap().iter().map(|r| json!({"id": r["id"]})).collect();
+        let (body, digest) = attempt([now_rows, vec![toll]].concat());
+        let (second, again) = alice_u.k.update_idempotent(&alice_u.ctx, "ServiceWorkOrder", wo1, body, None, "wo1.save.17", &digest).await.expect("sent again");
+        assert!(again && first == second, "the same answer, given again");
+        let had = alice_u.get("ServiceWorkOrder", wo1).await;
+        assert_eq!(had["expenses"].as_array().unwrap().iter().filter(|r| r["client_ref"] == json!("new-17")).count(), 1, "added once, under its ref");
+        assert_eq!(dec(&had["expense_total"]), n("35.5"), "and counted once");
+        alice_u.update("ServiceWorkOrder", wo1, json!({"expenses": kept})).await;
+    }
     let promote = alice_u.try_update("ServiceWorkOrder", wo1, json!({"priority": "Urgent"})).await;
     assert!(says(&promote, "not permitted"), "planning fields are the dispatcher's: {promote:?}");
     let mut for_bob = w["labour"].as_array().unwrap().clone();

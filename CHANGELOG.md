@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0
+
+Work done without a connection is done once, and nothing the server refuses is lost (Ferrum's closure review, FEO-001 to FEO-003).
+
+- Each step sent from the phone carries its key to the server, which keeps a receipt (Ferrum 121): an answer lost after the server did it, a reload or a second tab gives the same answer and does nothing twice. A change goes with a digest of what it does, since it is made again on the job as it stands. Setting off, arriving and completing online go with the same key and time they would carry if they waited.
+- A part, labour or expense row added on the phone carries the ref it was added under (`client_ref`, a new hidden field of those rows): sent again, it is found and not added twice, and taking it out goes by that ref when the add may have reached the server.
+- A photo or signature already on the job, by its content's digest, is not uploaded again.
+- A step the server refuses is kept, with its picture, under Refused, waiting for you on My day: try it again, save a copy, or discard it (confirmed, and noted on the job). Until then its job is not completed, even after a reload; before, the next send after a reload completed it.
+- One tab of the phone sends at a time (Web Locks).
+
+Built with Ferrum-Frontend 7a008a6, whose client sends the operation's digest beside its key.
+
 ## 0.4.14
 
 The reports it defines in code (their titles and parameters) have names in Arabic and Hindi too, with its models' and manifest's (374 each in ui/src/locales/names). Translated by the model, to be reviewed by native speakers.
