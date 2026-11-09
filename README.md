@@ -140,6 +140,21 @@ Everything Field Service adds is ordinary Ferrum metadata and Rust: its records 
 search, permissions, an audit trail, exports and the REST and MCP APIs for free, so AI agents work
 with them under the same rules as people.
 
+### A job without a connection
+
+What a technician does without a signal waits on the phone and goes, in the order done, when the
+connection is back: setting off, arriving, the checklist, parts, time, expenses, notes, photos, the
+signature and completing the job. Each step carries its key to the server, which does it once however
+often it comes (an answer lost after the server did it, a reload, a second tab), and a row added
+carries the ref it was added under (`client_ref`), so it is never added twice. A photo already on the
+job (by its content's digest) is not uploaded again. One tab of the phone sends at a time.
+
+A step the server refuses is kept, with its photo or signature, under **Refused, waiting for you** on
+My day, with why. The technician tries it again once it is put right, saves a copy, or discards it,
+which they confirm and which is noted on the job. Until then the job is not completed, however often
+the page reloads; the server checks completion itself all the same (required tasks, the signature,
+stock in the van).
+
 ## Data model
 
 The main records and how they connect (21 entities in all; `packages/` has every field).
@@ -283,6 +298,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.5.0** | Offline work is done once and nothing refused is lost: steps carry their keys, rows their refs, photos their digests; refused steps wait for the technician, and their job is not completed meanwhile. |
 | **0.4.14** | Its reports' names in Arabic and Hindi. |
 | **0.4.13** | Its names in Arabic and Hindi; the last English sentences translated. |
 | **0.4.12** | Sentences built in code are words too, in Arabic and Hindi. |

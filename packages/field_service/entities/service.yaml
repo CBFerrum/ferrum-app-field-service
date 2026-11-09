@@ -92,6 +92,7 @@
     - {name: batch_no, type: data, max_length: 140}
     - {name: warranty, type: check, in_list: true, description: "Replaced under warranty: invoiced at no charge"}
     - {name: cost, type: currency, read_only: true, no_copy: true, perm_group: costing, description: "Stock value issued on completion"}
+    - {name: client_ref, type: data, max_length: 64, hidden: true, no_copy: true, description: "The ref a phone added this row under, so that sent again it is not added twice"}
 
 - name: ServiceWorkOrderLabour
   label: Labour
@@ -106,6 +107,7 @@
     - {name: bill_rate, type: currency, read_only: true, no_copy: true}
     - {name: cost_rate, type: currency, read_only: true, no_copy: true, perm_group: costing}
     - {name: notes, type: data, max_length: 300}
+    - {name: client_ref, type: data, max_length: 64, hidden: true, no_copy: true, description: "The ref a phone added this row under, so that sent again it is not added twice"}
   rules:
     - {name: ends_after_start, check: "doc.from_time == null || doc.to_time == null || doc.to_time > doc.from_time", message: "Labour must end after it starts"}
 
@@ -117,6 +119,7 @@
     - {name: description, type: data, max_length: 300, in_list: true}
     - {name: amount, type: currency, required: true, min: "0.01", in_list: true}
     - {name: billable, type: check, default: true, in_list: true}
+    - {name: client_ref, type: data, max_length: 64, hidden: true, no_copy: true, description: "The ref a phone added this row under, so that sent again it is not added twice"}
 
 - name: ServiceWorkOrder
   label: Service Work Order
