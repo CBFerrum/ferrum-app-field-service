@@ -10,8 +10,8 @@ import { api, ApiError, docPath, type FieldError, t } from "@ferrum/client";
 import { toast, useLiveEntity } from "@ferrum/kit";
 import type { Doc } from "@ferrum/records";
 import { act, reason } from "./api";
-import { flush } from "./held";
-import { applied, edits, forgetAdd, hold, keepJob, keptJob, type Step, unreachable, type Waiting, waiting } from "./offline";
+import { editsDigest, flush } from "./held";
+import { actionDigest, applied, type Edit, edits, forgetAdd, hold, keepJob, keptJob, refusals, type Step, stepKey, unreachable, type Waiting, waiting, withRefs } from "./offline";
 import { Serial } from "./serial";
 
 export interface Outcome {
@@ -85,12 +85,14 @@ export function useWork(id: string) {
 
   const label = useCallback((what: string) => `${what}: ${String(query.data?.customer_name ?? query.data?.number ?? "a job")}`, [query.data]);
 
-  /** Keeps a change on this phone; false when it cannot (no lease to keep it under, or no room). */
+  /** Keeps a change on this phone; false when it cannot (no lease to keep it under, or no room). One
+   *  sent already whose answer did not come (`sent`) keeps its key and edits: the server may have it. */
   const keepChange = useCallback(
-    (before: Doc, fields: Record<string, unknown>, shown: Record<string, unknown>): boolean => {
+    (before: Doc, fields: Record<string, unknown>, shown: Record<string, unknown>, sent?: { key: string; list: Edit[] }): boolean => {
       // A row added here and taken out again before it was sent goes from what waits, and is not sent at all.
-      const list = edits(before, fields, shown).filter((e) => !(e.kind === "remove" && e.row.startsWith("new-") && forgetAdd(e.row)));
-      const ok = list.length === 0 || hold({ work_order: id, action: "save", edits: list, at: new Date().toISOString(), label: label("Changes") });
+      const list = sent?.list ?? edits(before, fields, shown).filter((e) => !(e.kind === "remove" && e.row.startsWith("new-") && forgetAdd(e.row)));
+      const step = { work_order: id, action: "save" as const, edits: list, at: new Date().toISOString(), label: label("Changes") };
+      const ok = list.length === 0 || hold(sent ? { ...step, key: sent.key, tried: true } : step);
       reheld();
       return ok;
     },
@@ -110,8 +112,11 @@ export function useWork(id: string) {
       qc.setQueryData<Doc>(key, (d) => d && { ...d, ...shown });
       setSaving(true);
       const write = async (): Promise<Outcome> => {
+        // Its key goes with it, and stays with it if it must wait: sent again, it is done once.
+        const list = edits(before, fields, shown);
+        const sent = { key: stepKey({ work_order: id, action: "save", at: new Date().toISOString() }), list };
         try {
-          const next = await api.patch<Doc>(docPath("ServiceWorkOrder", id), fields, { ifMatch: version.current });
+          const next = await api.patch<Doc>(docPath("ServiceWorkOrder", id), withRefs(fields, list), { ifMatch: version.current, idempotencyKey: sent.key, idempotencyDigest: await editsDigest(list) });
           version.current = Number(next.version);
           truth.current = { ...next, _titles: { ...truth.current?._titles, ...next._titles } };
           keepJob(id, truth.current);
@@ -120,7 +125,7 @@ export function useWork(id: string) {
           return { ok: true, fields: [] };
         } catch (e) {
           // No connection: the change waits on this phone and still shows (it is kept, not lost).
-          if (unreachable(e) && keepChange(before, fields, shown)) {
+          if (unreachable(e) && keepChange(before, fields, shown, sent)) {
             if (truth.current) qc.setQueryData<Doc>(key, truth.current);
             toast(t("No connection: kept on this phone, and sent when the connection is back."));
             return { ok: true, fields: [], held: true };
@@ -155,9 +160,16 @@ export function useWork(id: string) {
     async (action: string, body: unknown = {}): Promise<Outcome & { result?: unknown }> => {
       await queue.current.add(async () => true);
       const holdable = (HELD_ACTIONS as readonly string[]).includes(action);
-      const keep = () => {
+      // A job something of which was refused here is not completed until that is put right or discarded.
+      if (action === "complete" && refusals().some((r) => r.step.work_order === id)) {
+        return { ok: false, fields: [], message: t("Something you did on this job was refused and is not put right yet: try it again or discard it under My day, then complete the job.") };
+      }
+      const at = new Date().toISOString();
+      const stepId = stepKey({ work_order: id, action: action as Waiting["action"], at });
+      const keep = (tried = false) => {
         const what = action === "complete" ? t("Completed") : action === "arrive" ? t("On site") : t("On your way");
-        const ok = hold({ work_order: id, action: action as (typeof HELD_ACTIONS)[number], at: new Date().toISOString(), label: label(what) });
+        const step = { work_order: id, action: action as (typeof HELD_ACTIONS)[number], at, label: label(what) };
+        const ok = hold(tried ? { ...step, key: stepId, tried } : step);
         reheld();
         return ok;
       };
@@ -167,10 +179,13 @@ export function useWork(id: string) {
         return { ok: true, fields: [], held: true };
       }
       try {
-        const result = await act("ServiceWorkOrder", id, action, body);
+        // Setting off, arriving and completing go with their key and time, as they would if they waited.
+        const result = holdable
+          ? await api.post(docPath("ServiceWorkOrder", id, "actions", action), { ...(body as object), at }, { idempotencyKey: stepId, idempotencyDigest: actionDigest(action, at) })
+          : await act("ServiceWorkOrder", id, action, body);
         return { ok: true, fields: [], result };
       } catch (e) {
-        if (holdable && unreachable(e) && keep()) return { ok: true, fields: [], held: true };
+        if (holdable && unreachable(e) && keep(true)) return { ok: true, fields: [], held: true };
         return { ok: false, fields: e instanceof ApiError ? e.fields : [], message: reason(e) };
       } finally {
         // This job first: some actions move its version, and the next change is made against it.
