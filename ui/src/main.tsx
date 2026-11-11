@@ -13,6 +13,7 @@ import { ConfirmHost, EmptyState, ErrorState, PageLoading, Toaster } from "@ferr
 import { useMe, useMetaIndex } from "@ferrum/records";
 import { RequireAuth, setFrameMode } from "@ferrum/records/frame";
 import { keepToTheLease, unreachable } from "./offline";
+import { Failure } from "./Stale";
 import { home } from "./roles";
 import "./styles.css";
 
@@ -66,7 +67,7 @@ function JobFrame() {
 /** Planners start on the board, everyone else on their day. */
 function Landing() {
   const me = useMe();
-  if (me.error) return <ErrorState error={me.error} onRetry={() => void me.refetch()} />;
+  if (me.error) return <Failure error={me.error} onRetry={() => void me.refetch()} />;
   if (!me.data) return <PageLoading />;
   return <Navigate to={home(me.data.user)} replace />;
 }

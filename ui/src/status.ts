@@ -17,6 +17,17 @@ export const STATUS_TONE: Record<string, Tone> = {
 
 export const tone = (status: string | null | undefined): Tone => STATUS_TONE[status ?? ""] ?? "neutral";
 
+/** The invoice a completed job produces (ERP's SalesInvoice status ids). */
+export const INVOICE_TONE: Record<string, Tone> = {
+  Draft: "neutral",
+  Unpaid: "amber",
+  "Partly Paid": "amber",
+  Paid: "green",
+  Return: "neutral",
+  "Credit Note Issued": "neutral",
+  Cancelled: "red",
+};
+
 /** The statuses a work order passes through, in order (Cancelled leaves them). */
 export const STEPS = ["New", "Scheduled", "Dispatched", "En Route", "On Site", "Completed", "Invoiced"] as const;
 

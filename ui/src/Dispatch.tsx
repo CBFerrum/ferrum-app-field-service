@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type KeyboardEvent, type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { api, todayIso, t as tr, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, confirmDialog, EmptyState, ErrorState, Icon, Spinner, toast, useDebounced, useLiveEntity, useShellTitle } from "@ferrum/kit";
+import { Alert, Badge, Button, confirmDialog, Icon, StatePanel, TableSkeleton, toast, useDebounced, useLiveEntity, useShellTitle } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
 import { cancelVisit, dispatchJob, loadBoard, moveVisit, reason, scheduleJob, type Suggestion, suggest } from "./api";
 import {
@@ -30,7 +30,7 @@ import {
 import { Drawer, type DrawerOps } from "./Drawer";
 import { Grid, type Held, type Hover, type LaneOps, type Slot } from "./Lanes";
 import { Queue, QueueCard } from "./Queue";
-import { Stale } from "./Stale";
+import { Failure, Stale } from "./Stale";
 import { Week } from "./Week";
 import { plans } from "./roles";
 import { Tabs } from "./Tabs";
@@ -419,9 +419,9 @@ export function Dispatch() {
   const selectedJob = board?.unscheduled.find((j) => j.work_order === selected);
 
   const body = q.error && !board ? (
-    <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+    <Failure error={q.error} onRetry={() => void q.refetch()} />
   ) : !board || !axis ? (
-    <Spinner label={tr("Loading the board")} />
+    <TableSkeleton columns={8} rows={4} />
   ) : (
     <div className="fs-board" data-drawer={selected ? "" : undefined} data-rail={rail ? "" : undefined}>
       {rail && (
@@ -472,15 +472,11 @@ export function Dispatch() {
             </details>
           </>
         ) : (
-          <EmptyState title={territory ? tr("No technicians in this territory") : tr("No technicians yet")} icon="user">
-            {territory ? (
-              <button type="button" className="link-btn" onClick={() => set({ territory: null })}>
-                {tr("Show every territory")}
-              </button>
-            ) : (
-              <Link to="/e/Technician/new">{tr("Add the first technician")}</Link>
-            )}
-          </EmptyState>
+          territory ? (
+            <StatePanel kind="no-matches" title={tr("No technicians in this territory")} onClear={() => set({ territory: null })} clearLabel={tr("Show every territory")} />
+          ) : (
+            <StatePanel kind="empty" title={tr("No technicians yet")} action={<Link to="/e/Technician/new">{tr("Add the first technician")}</Link>} />
+          )
         )}
       </div>
       {selected && (
