@@ -298,6 +298,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.5.1** | The redesigned interface: the upgraded design system, shaped loading, told-apart states. |
 | **0.5.0** | Offline work is done once and nothing refused is lost: steps carry their keys, rows their refs, photos their digests; refused steps wait for the technician, and their job is not completed meanwhile. |
 | **0.4.14** | Its reports' names in Arabic and Hindi. |
 | **0.4.13** | Its names in Arabic and Hindi; the last English sentences translated. |
