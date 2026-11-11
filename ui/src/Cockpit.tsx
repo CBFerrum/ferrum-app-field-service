@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useCallback, useState } from "react";
 import { Link } from "react-router";
 import { api, docPath, formatDecimal, formatDate, t as tr, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, confirmDialog, Dialog, Field, Icon, PageLoading, statusTone, TabPanel, Tabs, toast, useLiveEntity } from "@ferrum/kit";
+import { Alert, Badge, Button, confirmDialog, Dialog, Field, Icon, ListSkeleton, statusTone, TabPanel, Tabs, toast, useLiveEntity } from "@ferrum/kit";
 import { can, CollabPanel, type EntityMeta, LinkTitle, RecordFields, useMetaIndex } from "@ferrum/records";
 import { reason } from "./api";
 import { billed, costs, history, hoursText, type InvoiceItem, margin, steps } from "./job";
@@ -15,7 +15,7 @@ import { Refusals, type View } from "./JobSheet";
 import { Photos, Signoff } from "./Proof";
 import { Checklist, Expenses, Parts, Time } from "./Sections";
 import { slaChip, slaClocks } from "./sla";
-import { priorityTone, tone } from "./status";
+import { INVOICE_TONE, priorityTone, tone } from "./status";
 import { clock, dayLabel, dayOf, stamp } from "./time";
 
 const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -346,7 +346,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
               <section className="fs-card-box" aria-label={tr("Visits")}>
                 <h2 className="fs-sec-h">{tr("Visits")}</h2>
                 {visits.isPending ? (
-                  <PageLoading label={tr("Loading the visits")} />
+                  <ListSkeleton rows={2} />
                 ) : visits.error ? (
                   <p className="muted">{tr("The visits could not be loaded.")}</p>
                 ) : visits.data.length ? (
@@ -434,12 +434,12 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
                 <h2 className="fs-sec-h">{tr("Invoice")}</h2>
                 {invoiceId ? (
                   invoice.isPending ? (
-                    <PageLoading label={tr("Loading the invoice")} />
+                    <ListSkeleton rows={2} />
                   ) : (
                     <>
                       <p>
                         <LinkTitle to="SalesInvoice" id={invoiceId} title={titles.sales_invoice} />{isolate(" ")}
-                        {text(invoice.data?.status) && <Badge tone={statusTone(invoice.data?.status)}>{isolate(String(invoice.data?.status))}</Badge>}
+                        {text(invoice.data?.status) && <Badge tone={statusTone(invoice.data?.status, INVOICE_TONE)}>{isolate(String(invoice.data?.status))}</Badge>}
                       </p>
                       {lines.length > 0 ? (
                         <div className="table-wrap">
@@ -505,7 +505,7 @@ export function Cockpit({ v, meta }: { v: View; meta: EntityMeta }) {
             <div className="fs-side-box">
               <h3>{tr("Earlier jobs on this equipment")}</h3>
               {earlier.isPending ? (
-                <PageLoading label={tr("Loading")} />
+                <ListSkeleton rows={2} />
               ) : earlier.data?.length ? (
                 <ul className="fs-earlier">
                   {earlier.data.map((e) => (

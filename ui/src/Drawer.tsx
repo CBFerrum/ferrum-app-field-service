@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
 import { api, docPath, t, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, Icon, Spinner } from "@ferrum/kit";
+import { Alert, Badge, Button, Icon, ListSkeleton, Spinner } from "@ferrum/kit";
 import type { Doc } from "@ferrum/records";
 import { suggest, type Suggestion } from "./api";
 import { type Board, isBusy, isMovable, type Job, lengthOf, STEP, type Visit } from "./board";
@@ -309,7 +309,7 @@ export function Drawer({
           )}
         </dl>
         {record.isError && <p className="muted">{t("The job's details could not be loaded.")}</p>}
-        {record.isPending && <Spinner label={t("Loading the job")} />}
+        {record.isPending && <ListSkeleton rows={3} />}
 
         {error && <Alert tone="error">{isolate(error)}</Alert>}
 
