@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { api, type FieldError } from "@ferrum/client";
-import { ErrorState, PageLoading, useShellTitle } from "@ferrum/kit";
+import { FormSkeleton, useShellTitle } from "@ferrum/kit";
 import { can, useEntityMeta, useMe } from "@ferrum/records";
 import { Cockpit } from "./Cockpit";
 import { DEFAULT_RULES, type Rules } from "./job";
@@ -16,7 +16,7 @@ import { JobSheet, type View } from "./JobSheet";
 import { keepPage, keepRules, keptPage, keptRules, type PageFacts, unreachable } from "./offline";
 import { plans, works } from "./roles";
 import type { Ctx } from "./Sections";
-import { Stale } from "./Stale";
+import { Failure, Stale } from "./Stale";
 import { useWork } from "./useWork";
 import "./work.css";
 
@@ -67,9 +67,9 @@ function Order({ id }: { id: string }) {
   }, [freshKey]);
   const facts = fresh ?? (unreachable(meta.error) || unreachable(meQuery.error) ? keptPage() : null);
 
-  if (work.query.error && !doc) return <ErrorState error={work.query.error} onRetry={() => void work.query.refetch()} />;
-  if (meta.error && !facts) return <ErrorState error={meta.error} onRetry={() => void meta.refetch()} />;
-  if (!doc || !facts) return <PageLoading />;
+  if (work.query.error && !doc) return <Failure error={work.query.error} onRetry={() => void work.query.refetch()} />;
+  if (meta.error && !facts) return <Failure error={meta.error} onRetry={() => void meta.refetch()} />;
+  if (!doc || !facts) return <FormSkeleton fields={6} />;
 
   const as = sp.get("as");
   // The office's screen needs the form's metadata: without a connection, the technician's.

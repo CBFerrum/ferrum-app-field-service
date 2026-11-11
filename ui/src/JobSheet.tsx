@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { type FieldError, t, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, confirmDialog, Icon, toast } from "@ferrum/kit";
+import { Alert, Badge, Button, confirmDialog, Icon, SaveStatus, toast } from "@ferrum/kit";
 import { directionsUrl, nextStep, rescheduled, telUrl, waiting } from "./journey";
 import { gaps, type Gap, type Rules } from "./job";
 import { scrollBehavior } from "./motion";
@@ -133,9 +133,7 @@ export function JobSheet({ v }: { v: View }) {
         </div>
         <div className="fs-sheet-badges">
           {v.saving && (
-            <span className="faint" role="status">
-              {t("Saving…")}
-            </span>
+            <SaveStatus state="saving" />
           )}
           <Badge tone={tone(status)}>{isolate(status)}</Badge>
           {(doc.priority === "Urgent" || doc.priority === "High") && <Badge tone={priorityTone(String(doc.priority))}>{isolate(String(doc.priority))}</Badge>}

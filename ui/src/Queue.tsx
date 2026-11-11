@@ -3,7 +3,7 @@
 // scheduled from the drawer, or with S to its best technician.
 
 import type { DragEvent, KeyboardEvent, ReactNode } from "react";
-import { Badge, EmptyState, Icon } from "@ferrum/kit";
+import { Badge, Icon, StatePanel } from "@ferrum/kit";
 import { type Held } from "./Lanes";
 import { type Job, lengthOf } from "./board";
 import { slaChip } from "./sla";
@@ -136,15 +136,9 @@ export function Queue({
       {jobs.length ? (
         <div className="fs-rail-list">{children}</div>
       ) : filtered ? (
-        <EmptyState title={t("Nothing matches")} icon="search">
-          <button type="button" className="link-btn" onClick={onClear}>
-            {t("Show every waiting job")}
-          </button>
-        </EmptyState>
+        <StatePanel kind="no-matches" title={t("Nothing matches")} onClear={onClear} clearLabel={t("Show every waiting job")} />
       ) : (
-        <EmptyState title={t("Nothing waiting")} icon="check">
-          <p className="muted">{t("Every open job has a time.")}</p>
-        </EmptyState>
+        <StatePanel kind="empty" title={t("Nothing waiting")}>{t("Every open job has a time.")}</StatePanel>
       )}
     </aside>
   );

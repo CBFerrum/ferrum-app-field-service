@@ -32,8 +32,10 @@ function picture(strokes: Point[][]): Promise<Blob | null> {
   c.height = HEIGHT;
   const g = c.getContext("2d");
   if (!g) return Promise.resolve(null);
+  // ui-lint-allow raw-color: the signature is a printed picture, black ink on white paper in either theme
   g.fillStyle = "#ffffff";
   g.fillRect(0, 0, WIDTH, HEIGHT);
+  // ui-lint-allow raw-color: the signature is a printed picture, black ink on white paper in either theme
   g.strokeStyle = "#000000";
   trace(g, strokes, WIDTH, HEIGHT, 3);
   return new Promise((resolve) => c.toBlob(resolve, "image/png"));
