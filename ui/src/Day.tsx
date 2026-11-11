@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { api, bootstrap, docPath, todayIso, t as tr, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, EmptyState, ErrorState, Icon, Spinner, toast, useLiveEntity, useShellTitle, placed } from "@ferrum/kit";
+import { Alert, Badge, Button, Icon, ListSkeleton, StatePanel, toast, useLiveEntity, useShellTitle, placed } from "@ferrum/kit";
 import { useMe } from "@ferrum/records";
 import { loadBoard, reason } from "./api";
 import type { Board, Lane } from "./board";
@@ -15,7 +15,7 @@ import { actionDigest, hold, keepDay, keptDay, refusals, stepKey, unreachable, w
 import { Refused } from "./Refused";
 import { arrange, changes, type Details, directionsUrl, laneOf, nextStep, type Seen, seen, type Stop, telUrl, waiting } from "./journey";
 import { slaChip } from "./sla";
-import { Stale } from "./Stale";
+import { Failure, Stale } from "./Stale";
 import { priorityTone, tone } from "./status";
 import { Tabs } from "./Tabs";
 import { addDays, clock, dayLabel, isDay, span, MINUTE } from "./time";
@@ -223,19 +223,23 @@ export function Day() {
   );
 
   const body = q.error && !q.data ? (
-    <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+    <Failure error={q.error} onRetry={() => void q.refetch()} />
   ) : !q.data ? (
-    <Spinner label={tr("Loading your day")} />
+    <ListSkeleton rows={3} />
   ) : !q.data.lane ? (
-    <EmptyState title={tr("You are not set up as a technician")} icon="user">
-      <p className="muted">{tr("A service manager adds a technician with your email address, and your jobs appear here.")}</p>
-    </EmptyState>
+    <StatePanel kind="empty" title={tr("You are not set up as a technician")}>
+      {tr("A service manager adds a technician with your email address, and your jobs appear here.")}
+    </StatePanel>
   ) : !arranged || !count ? (
-    <EmptyState title={isToday ? tr("Nothing planned for today") : tr("Nothing planned for {day}", { day: dayLabel(day) })} icon="check">
-      <button type="button" className="link-btn" onClick={() => move(1)}>
-        {tr("See")} {isolate(dayLabel(addDays(day, 1)))}
-      </button>
-    </EmptyState>
+    <StatePanel
+      kind="empty"
+      title={isToday ? tr("Nothing planned for today") : tr("Nothing planned for {day}", { day: dayLabel(day) })}
+      action={
+        <button type="button" className="link-btn" onClick={() => move(1)}>
+          {tr("See")} {isolate(dayLabel(addDays(day, 1)))}
+        </button>
+      }
+    />
   ) : (
     <>
       {arranged.now && <section aria-label={tr("In hand")}>{card(arranged.now, true)}</section>}
