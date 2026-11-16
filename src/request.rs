@@ -40,9 +40,9 @@ pub async fn customer_by_email(k: &Kernel, ctx: &Ctx, tx: &mut Tx, email: &str) 
 
 /// A tracking link for a request: the path on this server, the absolute URL when the public
 /// address is known (the Mail app's settings), and when it expires.
-pub async fn tracking_link(ctx: &Ctx, tx: &mut Tx, request: Uuid, days: i64) -> Result<(String, Option<String>, Ts)> {
+pub async fn tracking_link(k: &Kernel, ctx: &Ctx, tx: &mut Tx, request: Uuid, days: i64) -> Result<(String, Option<String>, Ts)> {
     let expires = Utc::now() + Duration::days(days.clamp(1, 365));
-    let token = notify::tracking_token(tx, ctx.tenant, request, expires).await?;
+    let token = notify::tracking_token(k, ctx.tenant, request, expires).await?;
     let path = notify::tracking_path(tx, ctx.tenant, &token).await?;
     let base: Option<String> = if ctx.schema.entity("CommsSettings").is_some() {
         sqlx::query_scalar::<_, Option<String>>("select public_url from e_comms_settings where tenant_id = $1 limit 1")
@@ -236,7 +236,7 @@ impl DocHook for RequestHook {
             }
             "tracking_link" => {
                 let settings = Settings::load(hc.kernel, hc.ctx, hc.tx).await?;
-                let (path, url, expires) = tracking_link(hc.ctx, hc.tx, request, settings.tracking_days).await?;
+                let (path, url, expires) = tracking_link(hc.kernel, hc.ctx, hc.tx, request, settings.tracking_days).await?;
                 let mut emailed = false;
                 // Field Service's pages send true; a record page's dialog says "Yes".
                 if params.get("send").is_some_and(|v| v.as_bool().unwrap_or(v.as_str() == Some("Yes"))) {

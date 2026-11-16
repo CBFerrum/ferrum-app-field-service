@@ -135,7 +135,7 @@ async fn public_request(k: &Kernel, req: &SiteRequest) -> Result<SiteResponse> {
     }
     let created = k.insert_tx(&ctx, &mut tx, "ServiceRequest", input).await?;
     let rid = id(&created, "id").ok_or_else(|| Error::internal("request without id"))?;
-    let (path, url, expires) = tracking_link(&ctx, &mut tx, rid, settings.tracking_days).await?;
+    let (path, url, expires) = tracking_link(k, &ctx, &mut tx, rid, settings.tracking_days).await?;
     let number = s(&created, "number").unwrap_or_default().to_string();
     if settings.notify_customer {
         let link = url.clone().unwrap_or_else(|| path.clone());
@@ -181,7 +181,7 @@ async fn tracking_view(k: &Kernel, ctx: &Ctx, tx: &mut ferrum_kernel::Tx, reques
 async fn track(k: &Kernel, req: &SiteRequest, token: &str) -> Result<SiteResponse> {
     let ctx = Ctx::system(req.tenant, k.registry.schema(req.tenant).await?);
     let mut tx = k.db.tenant_tx(req.tenant).await?;
-    let view = match notify::verify_tracking(&mut tx, req.tenant, token, Utc::now()).await? {
+    let view = match notify::verify_tracking(k, req.tenant, token, Utc::now()).await? {
         Some(request) => tracking_view(k, &ctx, &mut tx, request).await?,
         None => None,
     };

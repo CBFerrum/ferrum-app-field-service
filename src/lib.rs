@@ -34,9 +34,13 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// Registers this app's document hooks and its site. The Sales Invoice hook does nothing for
-/// tenants without the package.
+/// Registers this app's document hooks and its site. Call it inside the platform's registration of
+/// the app, `hooks.app("field-service", …)`: it takes its own vault handle there, which signs the
+/// customers' tracking links (`notify.rs`). The Sales Invoice hook does nothing for tenants without
+/// the package.
 pub fn register(hooks: &mut HookRegistry) {
+    let site: Arc<dyn ferrum_kernel::Site> = Arc::new(site::FieldServiceSite);
+    notify::remember(&site, hooks.vault());
     hooks
         .register("FieldServiceSettings", Arc::new(setup::SettingsHook))
         .register("Technician", Arc::new(setup::TechnicianHook))
@@ -46,7 +50,7 @@ pub fn register(hooks: &mut HookRegistry) {
         .register("ServiceAppointment", Arc::new(appointment::AppointmentHook))
         .register("ServiceContract", Arc::new(contract::ContractHook))
         .register("SalesInvoice", Arc::new(invoice::InvoiceLinkHook));
-    hooks.add_site(PACKAGE, Arc::new(site::FieldServiceSite));
+    hooks.add_site(PACKAGE, site);
 }
 
 /// This app's reports.

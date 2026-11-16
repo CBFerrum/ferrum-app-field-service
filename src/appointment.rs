@@ -451,7 +451,7 @@ async fn tell_customer(k: &Kernel, ctx: &Ctx, tx: &mut Tx, wo: &Doc, subject: &s
         .map(str::to_string);
     let Some(to) = to else { return Ok(false) };
     let link = match request.as_ref().and_then(|r| id(r, "id")) {
-        Some(r) => crate::request::tracking_link(ctx, tx, r, settings.tracking_days).await?.1,
+        Some(r) => crate::request::tracking_link(k, ctx, tx, r, settings.tracking_days).await?.1,
         None => None,
     };
     let mut html = format!("<p>{}</p><p>Reference: {}</p>", notify::escape(message), notify::escape(s(wo, "number").unwrap_or_default()));
