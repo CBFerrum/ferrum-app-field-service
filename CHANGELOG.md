@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.4
+
+Needs the same platform as 0.5.3. No database change. Interface only, `ui/dist` rebuilt with Ferrum-Frontend `06bd1a2`.
+
+- The offline day, jobs and steps are kept in the storage the client gives (`offlineEnv().storage`), not a copy of its
+  own.
+- The two routes to the screens apps no longer have (`apps/:app/settings`, `x/:app/:page`) are gone.
+- The page starts through the frontend's `mountApp`; the
+  interface lint has no baseline file any more.
+
 ## 0.5.3
 
 Customers' tracking links are signed with a key Field Service derives from its own key in the workspace's vault, made when needed and kept nowhere. Until now the key was made on first use and kept unsealed in a table of its own (`field_service_secret`), so whoever could read the database (a report, a backup, a support session) could sign a link for any request whose id they knew, with any expiry, and follow its visit from then on. The table is gone. A link names the version of the key it was signed with (`{request}.{expiry}.v{version}.{signature}`), so a rotation of Field Service's key leaves the links already sent working until they expire; while the vault is closed the request form and the tracking page answer 503 rather than make or check a link. The app now takes its vault handle as it registers: register it as the server does, `hooks.app("field-service", …)`.
