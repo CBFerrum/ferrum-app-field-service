@@ -232,9 +232,12 @@ is noted in the description). At most 10 public requests per address and 5 per e
 
 ### `GET /api/site/{tenant}/field_service/track/{token}` — follow a request
 
-Public, authenticated by the token: `{request}.{expiry}.{128-bit HMAC-SHA256}` signed with a
-per-tenant key kept outside every entity (table `field_service_secret`), compared in constant
-time, expiring. Unknown, tampered and expired tokens all answer 404.
+Public, authenticated by the token: `{request}.{expiry}.v{version}.{128-bit HMAC-SHA256}` signed
+with a key derived for tracking links from Field Service's own key in the workspace's vault (made
+when needed and kept nowhere, so nothing in the database can sign one; the version names the key it
+came from, so a rotation leaves the links already sent working), compared in constant time,
+expiring. Unknown, tampered and expired tokens all answer 404; while the vault is closed the
+endpoint answers 503 and no link is made.
 
 → `{reference, subject, status, requested_at, rejection_reason, visit: {status, scheduled_start,
 scheduled_end, technicians: [first names], on_the_way_since, arrived_at, completed_at} | null}`;

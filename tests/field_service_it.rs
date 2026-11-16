@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Duration, NaiveDate, SecondsFormat, TimeZone, Utc};
 use ferrum_kernel::files::FileStore;
 use ferrum_kernel::tenant::NewTenant;
+use ferrum_kernel::vault::{Scope, Vault};
 use ferrum_kernel::{Ctx, Db, DbConfig, Doc, Error, HookRegistry, Kernel, KernelSettings, ListQuery, Result, SiteRequest, SiteResponse};
 use ferrum_meta::Catalog;
 use hmac::{Hmac, Mac};
@@ -238,14 +239,13 @@ fn body(r: &SiteResponse) -> Value {
     serde_json::from_slice(&r.body).unwrap()
 }
 
-/// A tracking token signed with the tenant's key, as the app makes them (to test expiry).
-async fn signed(t: &T, request: Uuid, expires: i64) -> String {
-    let mut tx = t.k.db.tenant_tx(t.ctx.tenant).await.unwrap();
-    let key: Vec<u8> = sqlx::query_scalar("select secret from field_service_secret where tenant_id = $1").bind(t.ctx.tenant).fetch_one(&mut *tx).await.unwrap();
-    tx.commit().await.unwrap();
-    let mut mac = Hmac::<Sha256>::new_from_slice(&key).unwrap();
+/// A tracking token signed as the app signs them, with the key it derives from its own key in the
+/// vault: only its handle makes it (to test expiry).
+async fn signed(t: &T, vault: &Vault, request: Uuid, expires: i64) -> String {
+    let key = vault.derive(&t.k, Scope::Workspace(t.ctx.tenant), "tracking-links").await.unwrap();
+    let mut mac = Hmac::<Sha256>::new_from_slice(key.bytes()).unwrap();
     mac.update(format!("ferrum-field-service-track:{request}:{expires}").as_bytes());
-    format!("{}.{expires}.{}", request.simple(), hex::encode(&mac.finalize().into_bytes()[..16]))
+    format!("{}.{expires}.v{}.{}", request.simple(), key.version(), hex::encode(&mac.finalize().into_bytes()[..16]))
 }
 
 #[test]
@@ -258,8 +258,16 @@ fn field_service_end_to_end() {
 async fn scenario() {
     let url =
         std::env::var("FERRUM_FIELD_SERVICE_TEST_DATABASE_URL").unwrap_or_else(|_| "postgres://ferrum:ferrum@localhost:5432/ferrum_field_service_test".into());
-    let db = Db::connect(DbConfig { url, max_connections: 16, ..Default::default() }).await.expect("connect");
-    sqlx::raw_sql("drop schema if exists public cascade; create schema public;").execute(&db.pool).await.expect("reset");
+    let db = Db::connect(DbConfig { url: url.clone(), max_connections: 16, ..Default::default() }).await.expect("connect");
+    sqlx::raw_sql("drop schema if exists vault cascade; drop schema if exists public cascade; create schema public;").execute(&db.pool).await.expect("reset");
+    // The vault, opened as a server opens it (its credential slot, from the address's password), once migrated.
+    let opener = ferrum_kernel::vault::Opener {
+        database_url: url,
+        file: "/nonexistent/root.key".into(),
+        kdf: ferrum_kernel::vault::Kdf { m_kib: 64, t: 1, p: 1 },
+        ..Default::default()
+    };
+    ferrum_kernel::vault::open(&db, opener, false).await.expect("the vault");
     let mut packages = ferrum_domain::packages().expect("platform packages");
     packages.extend(ferrum_app_erp::packages().expect("ERP's packages"));
     packages.extend(ferrum_app_field_service::packages().expect("app packages"));
@@ -270,7 +278,13 @@ async fn scenario() {
     for source in ferrum_app_erp::reports() {
         ferrum_domain::reports::add_source(source);
     }
-    ferrum_app_field_service::register(&mut hooks);
+    // As the server registers it, with its own vault handle; the test keeps one too, to sign a link as the app does.
+    let mut links = None;
+    hooks.app("field-service", &[], |h| {
+        ferrum_app_field_service::register(h);
+        links = Some(h.vault());
+    });
+    let links = links.expect("Field Service's handle");
     for source in ferrum_app_field_service::reports() {
         ferrum_domain::reports::add_source(source);
     }
@@ -996,6 +1010,34 @@ async fn scenario() {
     let path = filed["tracking_path"].as_str().unwrap().to_string();
     let token = path.rsplit('/').next().unwrap().to_string();
     assert!(path.starts_with("/api/site/heatco/field_service/track/"), "{path}");
+    // Nothing the database holds signs a customer's link: whoever can read it (a report, a backup, a support session)
+    // cannot make one, for this request or any other, nor one that outlives the links the firm gives out.
+    {
+        let parts: Vec<&str> = token.split('.').collect();
+        let message = format!("ferrum-field-service-track:{}:{}", Uuid::try_parse(parts[0]).unwrap(), parts[1]);
+        let tag = hex::decode(parts[parts.len() - 1]).unwrap();
+        let mut tx = k.db.system_tx().await.unwrap();
+        let columns: Vec<(String, String)> = sqlx::query_as(
+            "select c.table_name::text, c.column_name::text from information_schema.columns c join information_schema.tables t \
+             on t.table_schema = c.table_schema and t.table_name = c.table_name \
+             where c.table_schema = 'public' and t.table_type = 'BASE TABLE' and c.data_type = 'bytea'",
+        )
+        .fetch_all(&mut *tx)
+        .await
+        .unwrap();
+        let mut tried = 0;
+        for (table, column) in &columns {
+            let sql = format!("select \"{column}\" from \"{table}\" where \"{column}\" is not null");
+            for bytes in sqlx::query_scalar::<_, Vec<u8>>(sqlx::AssertSqlSafe(sql)).fetch_all(&mut *tx).await.unwrap() {
+                let mut mac = Hmac::<Sha256>::new_from_slice(&bytes).unwrap();
+                mac.update(message.as_bytes());
+                assert!(mac.verify_truncated_left(&tag).is_err(), "{table}.{column} holds the key that signs customers' tracking links");
+                tried += 1;
+            }
+        }
+        tx.commit().await.unwrap();
+        assert!(tried > 0, "the database holds bytes, none of which signs a link");
+    }
     let follow = |token: String| {
         let k = k.clone();
         async move { public(&k, tenant, "GET", &format!("/track/{token}"), Value::Null).await }
@@ -1017,10 +1059,13 @@ async fn scenario() {
     let last = if token.ends_with('0') { '1' } else { '0' };
     let tampered = format!("{}{last}", &token[..token.len() - 1]);
     assert!(matches!(follow(tampered).await, Err(Error::NotFound(_))));
-    let expired = signed(&admin, uid(&web), Utc::now().timestamp() - 60).await;
+    // A link names the version of Field Service's key it was signed with; one the vault does not keep opens nothing.
+    assert_eq!(token.split('.').nth(2), Some("v1"), "{token}");
+    assert!(matches!(follow(token.replacen(".v1.", ".v2.", 1)).await, Err(Error::NotFound(_))));
+    let expired = signed(&admin, &links, uid(&web), Utc::now().timestamp() - 60).await;
     assert!(matches!(follow(expired).await, Err(Error::NotFound(_))), "expired links answer like unknown ones");
-    let fresh = signed(&admin, uid(&web), Utc::now().timestamp() + 600).await;
-    assert!(follow(fresh).await.is_ok(), "a link signed with the tenant's key works until it expires");
+    let fresh = signed(&admin, &links, uid(&web), Utc::now().timestamp() + 600).await;
+    assert!(follow(fresh).await.is_ok(), "a link signed with Field Service's key works until it expires");
     d.act("ServiceWorkOrder", web_wo, "dispatch", json!({})).await;
     alice_u.act("ServiceWorkOrder", web_wo, "arrive", json!({})).await;
     let sig = alice_u.upload("ServiceWorkOrder", web_wo, "sig.png", "image/png").await;

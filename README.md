@@ -7,7 +7,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-0.5.2-a63e30?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.3-a63e30?style=flat-square)](CHANGELOG.md)
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Ferrum platform](https://img.shields.io/badge/runs%20on-Ferrum-2f5bea?style=flat-square)](https://github.com/CBFerrum/Ferrum)
 ![Rust](https://img.shields.io/badge/Rust-server-b7410e?style=flat-square&logo=rust)
@@ -47,7 +47,7 @@ through ERP.
 
 | | |
 |---|---|
-| **Version** | 0.5.2 (platform `>=0.3.2, <0.4`) |
+| **Version** | 0.5.3 (platform `>=0.3.2, <0.4`) |
 | **Kind** | Own interface at `/field-service/` (dispatch board, technician's day, work order pages), plus generic records screens; installable on a phone |
 | **What it adds** | 21 entities (10 main, 11 child tables), 3 roles, 6 reports, 1 menu module, 2 public endpoints |
 | **Depends on** | Ferrum core and **ERP** (installing Field Service installs ERP) |
@@ -133,6 +133,8 @@ through ERP.
   5 per email per hour. The contact gets a confirmation with a tracking link.
 - **Tracking link.** A signed, expiring link (30 days by default) shows the request, the visit window, who is
   coming by first name, when they are on the way and when they arrived. Unknown, tampered and expired links all answer 404.
+  It is signed with a key derived from Field Service's own key in the workspace's vault, so nothing in the database can
+  sign one.
 
 ### 🧰 Work orders
 
@@ -433,6 +435,7 @@ Compared with Salesforce Field Service, ServiceTitan, Microsoft Dynamics 365 Fie
 
 ### ✅ Recently shipped
 
+- [x] **0.5.3.** Customers' tracking links signed with a key from the vault, no longer one kept in a table.
 - [x] **0.5.2.** Rebuilt on the tuned design system: better menu icons, lighter first page, cleaner print.
 - [x] **0.5.1.** The redesigned interface with shaped loading and told-apart states.
 - [x] **0.5.0.** Offline work done once and nothing refused lost: keys per step, refs per row, photo digests and a queue of refused steps.

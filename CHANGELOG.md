@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3
+
+Customers' tracking links are signed with a key Field Service derives from its own key in the workspace's vault, made when needed and kept nowhere. Until now the key was made on first use and kept unsealed in a table of its own (`field_service_secret`), so whoever could read the database (a report, a backup, a support session) could sign a link for any request whose id they knew, with any expiry, and follow its visit from then on. The table is gone. A link names the version of the key it was signed with (`{request}.{expiry}.v{version}.{signature}`), so a rotation of Field Service's key leaves the links already sent working until they expire; while the vault is closed the request form and the tracking page answer 503 rather than make or check a link. The app now takes its vault handle as it registers: register it as the server does, `hooks.app("field-service", …)`.
+
 ## 0.5.2
 
 Rebuilt with Ferrum-Frontend 9e7190c, the design system as tuned after the landed build was reviewed. The left menu's icons are chosen so that none repeats on more than three rows and each fits its row; their drawings load beside the first page instead of inside it, so the page starts lighter; a row that scrolls sideways fades at the edge where there is more, in every browser and with reduced motion; a printed record leaves out empty fields and keeps its totals with the table; menus and popovers sit inside the page's landmarks for assistive technology; a selection bar folds what does not fit into More on a narrow screen. Nothing else changes.
