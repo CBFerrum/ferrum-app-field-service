@@ -4,32 +4,23 @@
 // frame, with Field Service's modules in the sidebar under the platform's bar. Every screen loads
 // when it is first opened, so the first download holds only the frame (the size budget).
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { StrictMode, useEffect } from "react";
-import { createRoot } from "react-dom/client";
-import { createBrowserRouter, Link, Navigate, Outlet, RouterProvider, useRouteError } from "react-router";
-import { addCatalogs, routeBase, shell, t, wordsReady } from "@ferrum/client";
-import { ConfirmHost, EmptyState, ErrorState, PageLoading, Toaster } from "@ferrum/kit";
+import { useEffect } from "react";
+import { Link, Navigate, Outlet, useRouteError } from "react-router";
+import { routeBase, shell, t } from "@ferrum/client";
+import { EmptyState, ErrorState, PageLoading } from "@ferrum/kit";
 import { useMe, useMetaIndex } from "@ferrum/records";
-import { RequireAuth, setFrameMode } from "@ferrum/records/frame";
+import { mountApp, RequireAuth, setFrameMode } from "@ferrum/records/frame";
 import { keepToTheLease, unreachable } from "./offline";
 import { Failure } from "./Stale";
 import { home } from "./roles";
 import "./styles.css";
 
-// Its own words in the page's language (src/locales), fetched as the page starts; it is drawn once they are in.
-void addCatalogs({ ar: () => import("./locales/ar.json"), hi: () => import("./locales/hi.json") });
-
 /** A page of the records frame, loaded when first opened. */
-const page = (name: "FormView" | "ListView" | "ReportView" | "AppSettingsPage" | "ScreenPage") => () =>
+const page = (name: "FormView" | "ListView" | "ReportView") => () =>
   import("./records").then((m) => ({ Component: m[name] }));
 
 /** Field Service's package: the sidebar shows its modules. */
 const FIELD_SERVICE_PACKAGES = ["field_service"];
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, staleTime: 30_000 } },
-});
 
 function RouteError() {
   return <ErrorState error={useRouteError()} onRetry={() => window.location.reload()} />;
@@ -81,8 +72,10 @@ if ("serviceWorker" in navigator) {
   void navigator.serviceWorker.register(`${routeBase("field-service")}sw.js`, { scope: routeBase("field-service") }).catch(() => {});
 }
 
-const router = createBrowserRouter(
-  [
+mountApp({
+  route: "field-service",
+  catalogs: { ar: () => import("./locales/ar.json"), hi: () => import("./locales/hi.json") },
+  routes: [
     // The day works offline: outside the sign-in check, which asks the server who is signed in.
     {
       path: "/day",
@@ -121,24 +114,8 @@ const router = createBrowserRouter(
         { path: "e/:entity", lazy: page("ListView") },
         { path: "e/:entity/:id", lazy: page("FormView") },
         { path: "r/:name", lazy: page("ReportView") },
-        { path: "apps/:app/settings", lazy: page("AppSettingsPage") },
-        { path: "x/:app/:page", lazy: page("ScreenPage") },
         { path: "*", element: <NotFound /> },
       ],
     },
   ],
-  { basename: routeBase("field-service") },
-);
-
-// Drawn once the page's words are in (its language's catalogs, fetched as the page starts).
-void wordsReady().then(() =>
-  createRoot(document.getElementById("root")!).render(
-    <StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-        <Toaster />
-        <ConfirmHost />
-      </QueryClientProvider>
-    </StrictMode>,
-  ),
-);
+});

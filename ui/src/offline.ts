@@ -24,13 +24,8 @@ export function unreachable(e: unknown): boolean {
 
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-function storage(): Store | undefined {
-  try {
-    return globalThis.localStorage;
-  } catch {
-    return undefined;
-  }
-}
+/** Where this device keeps things for the page: the client's (none where the browser refuses it). */
+const storage = (): Store | undefined => offlineEnv().storage;
 
 function keep<T>(name: string | null, value: T, store: Store | undefined): boolean {
   if (!name || !store) return false;
