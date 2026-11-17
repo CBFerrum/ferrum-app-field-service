@@ -7,7 +7,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-0.5.4-a63e30?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.5-a63e30?style=flat-square)](CHANGELOG.md)
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Ferrum platform](https://img.shields.io/badge/runs%20on-Ferrum-2f5bea?style=flat-square)](https://github.com/CBFerrum/Ferrum)
 ![Rust](https://img.shields.io/badge/Rust-server-b7410e?style=flat-square&logo=rust)
@@ -47,7 +47,7 @@ through ERP.
 
 | | |
 |---|---|
-| **Version** | 0.5.4 (platform `>=0.3.2, <0.4`) |
+| **Version** | 0.5.5 (platform `>=0.3.2, <0.4`) |
 | **Kind** | Own interface at `/field-service/` (dispatch board, technician's day, work order pages), plus generic records screens; installable on a phone |
 | **What it adds** | 21 entities (10 main, 11 child tables), 3 roles, 6 reports, 1 menu module, 2 public endpoints |
 | **Depends on** | Ferrum core and **ERP** (installing Field Service installs ERP) |
@@ -435,6 +435,7 @@ Compared with Salesforce Field Service, ServiceTitan, Microsoft Dynamics 365 Fie
 
 ### ✅ Recently shipped
 
+- [x] **0.5.5.** Three stray backup files gone from the interface's sources; `ui/dist` rebuilt with Ferrum-Frontend c968269.
 - [x] **0.5.4.** The offline day, jobs and steps are kept in the storage the client gives; the page starts through the frontend's `mountApp`.
 - [x] **0.5.3.** Customers' tracking links signed with a key from the vault, kept nowhere.
 - [x] **0.5.2.** Rebuilt on the tuned design system: better menu icons, lighter first page, cleaner print.

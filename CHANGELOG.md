@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.5
+
+Needs the same platform as 0.5.4. No database change. Interface only, `ui/dist` rebuilt with Ferrum-Frontend `c968269`.
+
+- Three backups a `sed -i` left in `ui/src` (`work.css-E`, `board.css-E`, `styles.css-E`) are gone. Nothing used them; the interface is rebuilt because its source digest counted them.
+
 ## 0.5.4
 
 Needs the same platform as 0.5.3. No database change. Interface only, `ui/dist` rebuilt with Ferrum-Frontend `06bd1a2`.
