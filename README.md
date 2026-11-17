@@ -47,7 +47,7 @@ through ERP.
 
 | | |
 |---|---|
-| **Version** | 0.5.3 (platform `>=0.3.2, <0.4`) |
+| **Version** | 0.5.4 (platform `>=0.3.2, <0.4`) |
 | **Kind** | Own interface at `/field-service/` (dispatch board, technician's day, work order pages), plus generic records screens; installable on a phone |
 | **What it adds** | 21 entities (10 main, 11 child tables), 3 roles, 6 reports, 1 menu module, 2 public endpoints |
 | **Depends on** | Ferrum core and **ERP** (installing Field Service installs ERP) |
@@ -435,7 +435,8 @@ Compared with Salesforce Field Service, ServiceTitan, Microsoft Dynamics 365 Fie
 
 ### ✅ Recently shipped
 
-- [x] **0.5.3.** Customers' tracking links signed with a key from the vault, no longer one kept in a table.
+- [x] **0.5.4.** The offline day, jobs and steps are kept in the storage the client gives; the page starts through the frontend's `mountApp`.
+- [x] **0.5.3.** Customers' tracking links signed with a key from the vault, kept nowhere.
 - [x] **0.5.2.** Rebuilt on the tuned design system: better menu icons, lighter first page, cleaner print.
 - [x] **0.5.1.** The redesigned interface with shaped loading and told-apart states.
 - [x] **0.5.0.** Offline work done once and nothing refused lost: keys per step, refs per row, photo digests and a queue of refused steps.
