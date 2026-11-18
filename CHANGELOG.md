@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+Needs Ferrum 0.4.0 (apps' upkeep runs one workspace at a time, on whichever replica is free). No database or interface change.
+
+**Upkeep is one workspace's.** `maintenance(k, tenant)` makes the work orders of due contract visits, expires ended contracts and refreshes the SLA verdicts of open work orders in the one workspace the platform hands it; the list of workspaces and the installation check are the platform's.
+
 ## 0.5.5
 
 Needs the same platform as 0.5.4. No database change. Interface only, `ui/dist` rebuilt with Ferrum-Frontend `c968269`.
