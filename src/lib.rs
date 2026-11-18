@@ -58,37 +58,26 @@ pub fn reports() -> Vec<Arc<dyn ReportSource>> {
     vec![Arc::new(reports::FieldServiceReports)]
 }
 
-/// Periodic upkeep: every minute, on one replica at a time (advisory lock); must be idempotent and cheap.
-/// Creates the work orders of due contract visits (once per visit), expires ended contracts and
-/// refreshes the SLA verdicts of open work orders. A failing tenant is logged and does not stop
-/// the others; the first error is returned.
-pub async fn maintenance(k: &Kernel) -> Result<()> {
-    let mut tx = k.db.system_tx().await?;
-    let tenants: Vec<Uuid> = sqlx::query_scalar("select id from tenant where status = 'active' order by id").fetch_all(&mut *tx).await?;
-    tx.commit().await?;
-    let mut first_error = None;
-    for tenant in tenants {
-        let res = async {
-            let schema = k.registry.schema(tenant).await?;
-            if !schema.packages.iter().any(|p| p == PACKAGE) {
-                return Ok(());
-            }
-            let ctx = Ctx::system(tenant, schema);
-            let generated = contract::generate_due(k, &ctx).await?;
-            let expired = contract::expire(k, &ctx).await?;
-            let refreshed = work_order::refresh_slas(k, &ctx).await?;
-            if generated + expired + refreshed > 0 {
-                tracing::info!(%tenant, generated, expired, refreshed, "field service maintenance");
-            }
-            Ok::<_, Error>(())
+/// One workspace's upkeep, which the platform runs about once a minute where Field Service is installed, on whichever
+/// replica is free, and may run again: creates the work orders of due contract visits (once per visit), expires ended
+/// contracts and refreshes the SLA verdicts of open work orders.
+pub async fn maintenance(k: &Kernel, tenant: Uuid) -> Result<()> {
+    let res = async {
+        let schema = k.registry.schema(tenant).await?;
+        let ctx = Ctx::system(tenant, schema);
+        let generated = contract::generate_due(k, &ctx).await?;
+        let expired = contract::expire(k, &ctx).await?;
+        let refreshed = work_order::refresh_slas(k, &ctx).await?;
+        if generated + expired + refreshed > 0 {
+            tracing::info!(%tenant, generated, expired, refreshed, "field service maintenance");
         }
-        .await;
-        if let Err(e) = res {
-            tracing::warn!(%tenant, "field service maintenance failed: {e}");
-            first_error.get_or_insert(e);
-        }
+        Ok::<_, Error>(())
     }
-    first_error.map_or(Ok(()), Err)
+    .await;
+    if let Err(e) = &res {
+        tracing::warn!(%tenant, "field service maintenance failed: {e}");
+    }
+    res
 }
 
 pub(crate) const PACKAGE: &str = "field_service";

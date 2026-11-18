@@ -291,7 +291,6 @@ async fn scenario() {
     let k = Kernel::boot(db, catalog, hooks, KernelSettings::default(), None).await.expect("boot");
     k.set_file_store(Arc::new(MemFiles::default()));
     ferrum_domain::maintenance(&k).await.expect("partitions");
-    ferrum_app_erp::maintenance(&k).await.expect("partitions");
     let tenant = k
         .create_tenant(NewTenant {
             slug: "heatco".into(),
@@ -875,10 +874,13 @@ async fn scenario() {
         )
         .await;
     assert!(refused(&wrong_owner, "equipment"), "{wrong_owner:?}");
-    ferrum_app_field_service::maintenance(&k).await.expect("maintenance");
-    ferrum_app_field_service::maintenance(&k).await.expect("again");
-    let (x, y, z) =
-        tokio::join!(ferrum_app_field_service::maintenance(&k), ferrum_app_field_service::maintenance(&k), ferrum_app_field_service::maintenance(&k));
+    ferrum_app_field_service::maintenance(&k, tenant).await.expect("maintenance");
+    ferrum_app_field_service::maintenance(&k, tenant).await.expect("again");
+    let (x, y, z) = tokio::join!(
+        ferrum_app_field_service::maintenance(&k, tenant),
+        ferrum_app_field_service::maintenance(&k, tenant),
+        ferrum_app_field_service::maintenance(&k, tenant)
+    );
     x.and(y).and(z).expect("at once");
     let planned = manager.list("ServiceWorkOrder", json!({"service_contract": c1.to_string(), "contract_due_date": ["is", "set"]})).await;
     let mut due: Vec<String> = planned.iter().map(|w| w["contract_due_date"].as_str().unwrap().to_string()).collect();
@@ -907,7 +909,7 @@ async fn scenario() {
     );
     let c2 = plan(today() - Duration::days(10), today() + Duration::days(10), "300", None).await;
     admin.exec("update e_service_contract set end_date = current_date - 30 where tenant_id = $1 and id = $2", c2).await;
-    ferrum_app_field_service::maintenance(&k).await.expect("maintenance");
+    ferrum_app_field_service::maintenance(&k, tenant).await.expect("maintenance");
     assert_eq!(manager.get("ServiceContract", c2).await["status"], json!("Expired"));
 
     // ───────────── service levels judged as time passes ─────────────
@@ -943,12 +945,12 @@ async fn scenario() {
             slow,
         )
         .await;
-    ferrum_app_field_service::maintenance(&k).await.expect("sla refresh");
+    ferrum_app_field_service::maintenance(&k, tenant).await.expect("sla refresh");
     let w = d.get("ServiceWorkOrder", slow).await;
     assert_eq!((w["response_breached"].clone(), w["resolution_breached"].clone(), w["sla_status"].clone()), (json!(true), json!(true), json!("Breached")));
     let breaches = admin.notifications(dispatcher.ctx.user).await.iter().filter(|t| t.starts_with("SLA breached")).count();
     assert!(breaches >= 1, "the dispatcher who logged it hears of the breach");
-    ferrum_app_field_service::maintenance(&k).await.expect("again");
+    ferrum_app_field_service::maintenance(&k, tenant).await.expect("again");
     assert_eq!(admin.notifications(dispatcher.ctx.user).await.iter().filter(|t| t.starts_with("SLA breached")).count(), breaches, "announced once");
     let events = admin.count("select count(*) from outbox where tenant_id = $1 and record_id = $2 and topic = 'ServiceWorkOrder.updated'", slow).await;
     assert_eq!(events, 1, "the verdict change is published once for automations and webhooks");
