@@ -283,6 +283,13 @@ pub async fn schedule(hc: &mut HookCtx<'_>, wo: &Doc, params: &Value) -> Result<
             .iter()
             .map(|v| v.as_str().and_then(|x| x.parse().ok()).ok_or_else(|| Error::field("technicians", "must be a list of technician ids")))
             .collect::<Result<_>>()?,
+        // Through the gate, ids separated by commas (an action parameter has no list type).
+        (Some(Value::String(text)), _) => text
+            .split(',')
+            .map(str::trim)
+            .filter(|x| !x.is_empty())
+            .map(|x| x.parse().map_err(|_| Error::field("technicians", "must be technician ids separated by commas")))
+            .collect::<Result<_>>()?,
         (_, Some(Value::String(t))) => vec![t.parse().map_err(|_| Error::field("technician", "is not a technician id"))?],
         _ => vec![],
     };

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.6.4
+
+Needs the same platform as 0.6.3. Package `field_service` 0.2.0. No database or interface change.
+
+**Every action says what it promises.** All twelve actions carry a contract (effect, what they return, what done means) and declare the parameters their handlers read: `suggest_technicians` (`start`, `end`, `duration_minutes`; a query, run read-only) and `schedule` (`start`, `end`, `duration_minutes`, `technician`, `technicians`, `notes`) are in the capability catalog, so an agent plans a job through the same operation as the dispatch board; `start_travel`, `arrive` and `complete` declare `at`. `dispatch`, `start_travel`, `reject` and `tracking_link` queue a customer mail and are outside effects. Through the gate `schedule` takes `technicians` as ids separated by commas (an action parameter has no list type); the board still sends a list. The record page may now ask "When It Was Done" before Start Travel, Arrive and Complete; Field Service's own pages are unchanged. Tests: `tests/contracts_it.rs`.
+
+## 0.6.3
+
+Needs a platform with `reports::readable_choice` and `readable_default` (Ferrum main after #314). No database or interface change.
+
+**Reports show only what the caller reads** (Ferrum's K0-7). Each grouping names the work order's field it reads (Priority, Work Type and Territory are `planning` fields): a grouping the caller cannot read is refused, and without a choice the report's default falls back to the first grouping they read (`fs_sla_compliance` defaults to Priority, then Status). The parts report's company filter is refused to whoever cannot read work orders' company. Columns: the parts report leaves out Cost, and the contract report leaves out Labour and Parts Cost and Margin, for those without the `costing` group; the contract report's Invoiced Work and Revenue (summed from sales invoices) only show to those who read every sales invoice. Tests: `a_report_refuses_grouping_by_a_field_the_caller_cannot_read`, `a_report_s_default_falls_back_to_a_readable_grouping`, `a_report_leaves_out_columns_the_caller_cannot_read` (`tests/access_it.rs`).
+
+## 0.6.2
+
+Needs a platform with `reach_links` (Ferrum main after #314). No database or interface change.
+
+**The links that decide whose records a customer reaches are declared** (Ferrum's K0-2, docs/guides/05). The public request form names a customer by the email address given and links only that customer's unit (`src/site.rs`), and a request is that customer's; so `CustomerEquipment.customer` and `ServiceRequest.customer` are in their entities' `reach_links`, and a merge that moves them is an administrator's (`scripts/reach_links.py` lists none left). Test: `a_customer_on_the_public_side_reaches_only_their_own_equipment` (`tests/access_it.rs`).
+
+## 0.6.1
+
+Needs the same platform as 0.6.0. No database or interface change.
+
+**Pressing an action that changes a record needs the right to change it** (Ferrum's K0-6 rule, docs/guides/05). `ServiceRequest.make_work_order` and `ServiceWorkOrder.create_invoice` were declared `permission: read`, so anyone who could read a request and create work orders could convert it, and anyone who could read a work order and create sales invoices could invoice it (and mark it Invoiced). Both are `permission: write` now; dispatchers and service managers keep them. Test: `a_reader_cannot_convert_a_request_or_invoice_a_work_order` (`tests/access_it.rs`). The integration suites added from now on run on the platform's test kit (`ferrum-testkit`, a dev-dependency), each test in its own workspace.
+
 ## 0.6.0
 
 Needs Ferrum 0.4.0 (apps' upkeep runs one workspace at a time, on whichever replica is free). No database or interface change.

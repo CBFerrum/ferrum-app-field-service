@@ -8,7 +8,7 @@ use crate::logic::{self, Ts};
 use crate::setup::Settings;
 use async_trait::async_trait;
 use chrono::{Duration, NaiveDate};
-use ferrum_domain::reports::{Params, ReportCompany, ReportSource, col, param_def, period, read_tx};
+use ferrum_domain::reports::{Params, ReportCompany, ReportSource, col, param_def, period, read_tx, readable_choice, readable_default};
 use ferrum_domain::util::money;
 use ferrum_kernel::{Access, Action, Ctx, Error, Kernel, Result, Tx, row_scope};
 use rust_decimal::Decimal;
@@ -19,27 +19,42 @@ use uuid::Uuid;
 
 pub struct FieldServiceReports;
 
-/// Groupings: label → SQL over the work order `a`, its territory `tr` and (Technician) crew `c`.
-const GROUPS: [(&str, &str); 6] = [
-    ("Status", "a.status"),
-    ("Technician", "coalesce(c.technician_name, 'Unassigned')"),
-    ("Territory", "coalesce(tr.territory_name, 'No Territory')"),
-    ("Work Type", "coalesce(a.work_type, '')"),
-    ("Priority", "coalesce(a.priority, '')"),
-    ("Customer", "coalesce(a.customer_name, 'Unknown')"),
+/// Groupings: label, SQL over the work order `a`, its territory `tr` and (Technician) crew `c`, and the field of
+/// `ServiceWorkOrder` it reads, which the caller must be able to read (Priority, Work Type and Territory are
+/// planning fields).
+const GROUPS: [(&str, &str, &str); 6] = [
+    ("Status", "a.status", "status"),
+    ("Technician", "coalesce(c.technician_name, 'Unassigned')", "crew"),
+    ("Territory", "coalesce(tr.territory_name, 'No Territory')", "territory"),
+    ("Work Type", "coalesce(a.work_type, '')", "work_type"),
+    ("Priority", "coalesce(a.priority, '')", "priority"),
+    ("Customer", "coalesce(a.customer_name, 'Unknown')", "customer_name"),
 ];
 
 fn group_param(default: &str) -> Value {
-    json!({"name": "group_by", "label": "Group By", "type": "select", "options": GROUPS.map(|(l, _)| l), "default": default})
+    json!({"name": "group_by", "label": "Group By", "type": "select", "options": GROUPS.map(|(l, _, _)| l), "default": default})
 }
 
-fn grouping(p: &Params<'_>, default: &str) -> Result<(&'static str, &'static str)> {
-    let want = p.str("group_by").unwrap_or(default);
-    GROUPS
-        .iter()
-        .copied()
-        .find(|(label, _)| label.eq_ignore_ascii_case(want))
-        .ok_or_else(|| Error::field("group_by", format!("use one of: {}", GROUPS.map(|(l, _)| l).join(", "))))
+/// The grouping the caller chose, refused when they cannot read its field; without a choice, `default` or else the
+/// first grouping whose field they read.
+fn grouping(ctx: &Ctx, p: &Params<'_>, default: &str) -> Result<(&'static str, &'static str)> {
+    let chosen = match p.str("group_by").map(str::trim).filter(|g| !g.is_empty()) {
+        Some(want) => {
+            let g = GROUPS
+                .iter()
+                .find(|(label, _, _)| label.eq_ignore_ascii_case(want))
+                .ok_or_else(|| Error::field("group_by", format!("use one of: {}", GROUPS.map(|(l, _, _)| l).join(", "))))?;
+            readable_choice(ctx, "ServiceWorkOrder", g.2)?;
+            g
+        }
+        None => {
+            let order: Vec<&str> = GROUPS.iter().filter(|g| g.0 == default).chain(GROUPS.iter().filter(|g| g.0 != default)).map(|g| g.2).collect();
+            let field =
+                readable_default(ctx, "ServiceWorkOrder", &order).ok_or_else(|| Error::Forbidden("you cannot read what work orders are grouped by".into()))?;
+            GROUPS.iter().find(|g| g.2 == field).ok_or_else(|| Error::internal("a grouping without its field"))?
+        }
+    };
+    Ok((chosen.0, chosen.1))
 }
 
 /// The report period as local dates and the instants that bound them in the workspace's zone.
@@ -79,9 +94,14 @@ fn ratio(part: Decimal, whole: Decimal) -> Value {
     if whole.is_zero() { Value::Null } else { money((part * Decimal::ONE_HUNDRED / whole).round_dp(2)) }
 }
 
-/// Whether the caller may read a field (costs are in the `costing` group).
+/// Whether the caller may read a field (costs are in the `costing` group; invoices are Selling's).
 fn readable(ctx: &Ctx, entity: &str, field: &str) -> bool {
-    ctx.schema.entity(entity).and_then(|e| e.field(field)).is_some_and(|f| ctx.perms.can_read_field(entity, f))
+    ctx.schema.entity(entity).is_some_and(|e| ferrum_kernel::query::readable(ctx, e, field))
+}
+
+/// The output columns without those named in `hidden`, which read fields the caller cannot read.
+fn shown(columns: Vec<Value>, hidden: &[&str]) -> Vec<Value> {
+    columns.into_iter().filter(|c| !hidden.iter().any(|h| c["name"] == json!(h))).collect()
 }
 
 fn meta(from: NaiveDate, to: NaiveDate, group: &str) -> Value {
@@ -92,7 +112,7 @@ type SummaryRow = (String, i64, i64, i64, i64, i64, i64, i64, i64);
 
 async fn summary(ctx: &Ctx, p: &Params<'_>, tx: &mut Tx) -> Result<Value> {
     let (from, to, start, end) = span(ctx, p)?;
-    let (label, expr) = grouping(p, "Status")?;
+    let (label, expr) = grouping(ctx, p, "Status")?;
     let counts = "count(distinct a.id), count(distinct a.id) filter (where a.status = 'New'), \
                   count(distinct a.id) filter (where a.status in ('Scheduled', 'Dispatched')), count(distinct a.id) filter (where a.status in ('En Route', 'On Site')), \
                   count(distinct a.id) filter (where a.status = 'Completed'), count(distinct a.id) filter (where a.status = 'Invoiced'), \
@@ -128,7 +148,7 @@ type FixRow = (String, i64, i64, i64, Option<Decimal>);
 
 async fn first_time_fix(ctx: &Ctx, p: &Params<'_>, tx: &mut Tx) -> Result<Value> {
     let (from, to, start, end) = span(ctx, p)?;
-    let (label, expr) = grouping(p, "Technician")?;
+    let (label, expr) = grouping(ctx, p, "Technician")?;
     let counts =
         "count(distinct a.id), count(distinct a.id) filter (where a.first_time_fix), count(distinct a.id) filter (where a.visits > 1), round(avg(a.visits), 2)";
     let completed = |qb: &mut QueryBuilder<Postgres>| {
@@ -161,7 +181,7 @@ type SlaRow = (String, i64, i64, i64, i64, i64);
 
 async fn sla_compliance(ctx: &Ctx, p: &Params<'_>, tx: &mut Tx) -> Result<Value> {
     let (from, to, start, end) = span(ctx, p)?;
-    let (label, expr) = grouping(p, "Priority")?;
+    let (label, expr) = grouping(ctx, p, "Priority")?;
     let counts = "count(distinct a.id), count(distinct a.id) filter (where a.arrived_at is not null and not a.response_breached), \
                   count(distinct a.id) filter (where a.response_breached), count(distinct a.id) filter (where a.completed_at is not null and not a.resolution_breached), \
                   count(distinct a.id) filter (where a.resolution_breached)";
@@ -288,6 +308,7 @@ async fn parts(ctx: &Ctx, p: &Params<'_>, tx: &mut Tx) -> Result<Value> {
     scope.push_sql(&mut qb, "a");
     within(&mut qb, "a.completed_at", start, end);
     if let Some(c) = p.uuid("company")? {
+        readable_choice(ctx, "ServiceWorkOrder", "company")?;
         qb.push(" and a.company = ").push_bind(c);
     }
     if let Some(w) = p.uuid("warehouse")? {
@@ -305,10 +326,17 @@ async fn parts(ctx: &Ctx, p: &Params<'_>, tx: &mut Tx) -> Result<Value> {
                    "cost": if costs { money(cost) } else { Value::Null }, "work_orders": orders})
         })
         .collect();
+    let columns = vec![
+        col("item_code", "Item", "data"),
+        col("item_name", "Item Name", "data"),
+        col("qty", "Quantity Used", "decimal"),
+        col("free_qty", "Under Warranty or Contract", "decimal"),
+        col("billable_qty", "Billable", "decimal"),
+        col("cost", "Cost", "currency"),
+        col("work_orders", "Work Orders", "int"),
+    ];
     Ok(json!({
-        "columns": [col("item_code", "Item", "data"), col("item_name", "Item Name", "data"), col("qty", "Quantity Used", "decimal"),
-            col("free_qty", "Under Warranty or Contract", "decimal"), col("billable_qty", "Billable", "decimal"), col("cost", "Cost", "currency"),
-            col("work_orders", "Work Orders", "int")],
+        "columns": shown(columns, if costs { &[][..] } else { &["cost"][..] }),
         "rows": rows,
         "totals": {"qty": money(totals.0), "free_qty": money(totals.2), "billable_qty": money(totals.0 - totals.2), "cost": if costs { money(totals.1) } else { Value::Null }},
         "meta": {"from_date": from, "to_date": to},
@@ -342,24 +370,49 @@ async fn contract_revenue(ctx: &Ctx, p: &Params<'_>, tx: &mut Tx) -> Result<Valu
     qb.push(" order by a.start_date desc, a.number");
     let data: Vec<ContractRow> = qb.build_query_as().fetch_all(&mut **tx).await?;
     let costs = readable(ctx, "ServiceWorkOrder", "parts_cost") && readable(ctx, "ServiceWorkOrder", "labour_cost");
+    // What the work was invoiced is summed from Selling's invoices: only for those who read every one of them.
+    let invoices = ctx.perms.access("SalesInvoice", Action::Read) == Access::All && readable(ctx, "SalesInvoice", "base_net_total");
     let hide = |v: Decimal| if costs { money(v) } else { Value::Null };
+    let sold = |v: Decimal| if invoices { money(v) } else { Value::Null };
+    let both = |v: Decimal| if costs && invoices { money(v) } else { Value::Null };
+    let mut hidden: Vec<&str> = Vec::new();
+    if !invoices {
+        hidden.extend(["invoiced", "revenue"]);
+    }
+    if !costs {
+        hidden.push("cost");
+    }
+    if !(costs && invoices) {
+        hidden.push("margin");
+    }
     let mut t = (Decimal::ZERO, Decimal::ZERO, Decimal::ZERO, 0i64, 0i64);
     let rows: Vec<Value> = data
         .into_iter()
         .map(|(number, customer, status, start, end, value, orders, completed, invoiced, cost)| {
             t = (t.0 + value, t.1 + invoiced, t.2 + cost, t.3 + orders, t.4 + completed);
             json!({"contract": number, "customer_name": customer, "status": status, "start_date": start, "end_date": end,
-                   "contract_value": money(value), "work_orders": orders, "completed": completed, "invoiced": money(invoiced),
-                   "revenue": money(value + invoiced), "cost": hide(cost), "margin": hide(value + invoiced - cost)})
+                   "contract_value": money(value), "work_orders": orders, "completed": completed, "invoiced": sold(invoiced),
+                   "revenue": sold(value + invoiced), "cost": hide(cost), "margin": both(value + invoiced - cost)})
         })
         .collect();
+    let columns = vec![
+        col("contract", "Contract", "data"),
+        col("customer_name", "Customer", "data"),
+        col("status", "Status", "data"),
+        col("start_date", "Start", "date"),
+        col("end_date", "End", "date"),
+        col("contract_value", "Contract Value", "currency"),
+        col("work_orders", "Work Orders", "int"),
+        col("completed", "Completed", "int"),
+        col("invoiced", "Invoiced Work", "currency"),
+        col("revenue", "Revenue", "currency"),
+        col("cost", "Labour and Parts Cost", "currency"),
+        col("margin", "Margin", "currency"),
+    ];
     Ok(json!({
-        "columns": [col("contract", "Contract", "data"), col("customer_name", "Customer", "data"), col("status", "Status", "data"),
-            col("start_date", "Start", "date"), col("end_date", "End", "date"), col("contract_value", "Contract Value", "currency"),
-            col("work_orders", "Work Orders", "int"), col("completed", "Completed", "int"), col("invoiced", "Invoiced Work", "currency"),
-            col("revenue", "Revenue", "currency"), col("cost", "Labour and Parts Cost", "currency"), col("margin", "Margin", "currency")],
+        "columns": shown(columns, &hidden),
         "rows": rows,
-        "totals": {"contract_value": money(t.0), "invoiced": money(t.1), "revenue": money(t.0 + t.1), "cost": hide(t.2), "margin": hide(t.0 + t.1 - t.2),
+        "totals": {"contract_value": money(t.0), "invoiced": sold(t.1), "revenue": sold(t.0 + t.1), "cost": hide(t.2), "margin": both(t.0 + t.1 - t.2),
                    "work_orders": t.3, "completed": t.4},
         "meta": {"unit": "company currency; invoiced work counts submitted invoices before tax"},
     }))

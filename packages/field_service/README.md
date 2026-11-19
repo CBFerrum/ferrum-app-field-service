@@ -73,7 +73,7 @@ reference. Converted and rejected requests are final.
 
 | Action | Who | Params | Returns |
 |---|---|---|---|
-| `make_work_order` | read access + Service Work Order create | `{company?}` | `{entity, id, number}` of the work order (customer, contact, equipment, site, type, priority, description, preferred time and `reported_at = requested_at` carried over); the request becomes Converted. Refused without a customer, and once converted |
+| `make_work_order` | write access to the request + Service Work Order create | `{company?}` | `{entity, id, number}` of the work order (customer, contact, equipment, site, type, priority, description, preferred time and `reported_at = requested_at` carried over); the request becomes Converted. Refused without a customer, and once converted |
 | `reject` | dispatchers, managers | `{reason}` (required, ≤ 2000) | `{status: "Rejected", customer_emailed}`; whoever filed it is told |
 | `tracking_link` | read access | `{send?: true}` | `{path, url, expires_at, emailed}`: a new signed link (`url` is absolute when the Mail app's public URL is set); `send` emails it to the contact (needs the Mail app) |
 
@@ -124,13 +124,20 @@ technician's when the line was entered.
 | Action | Who | Params | Returns / effect |
 |---|---|---|---|
 | `suggest_technicians` | dispatchers, managers | `{start?, end? \| duration_minutes?}` (default slot: the scheduled one, else the preferred time, else the next quarter hour) | `{work_order, start, end, technicians: [{technician, technician_name, eligible, score, distance_km, travel_minutes, travel_from, territory, territory_name, within_working_hours, jobs_that_day, reasons: [...]}]}`, eligible first, then score, travel, name. Ineligible: missing required skills, or already booked in the slot. Score 0–100: same territory 30 (work order without territory 15), within working hours 20, travel up to 40 (0 after two hours; 20 without coordinates), workload 10 − 3 per other job that day, −20 when the technician cannot make it in time after the previous job. Travel starts from the previous job's site that day, else home |
-| `schedule` | dispatchers, managers | `{technicians: [id] \| technician: id, start, end? \| duration_minutes?, notes?}` (1–20 technicians) | `{entity, id, number, scheduled_start, scheduled_end, appointment_status, status}`. Moves the current appointment while it is Scheduled or Dispatched (a moved dispatched appointment must be dispatched again); while a technician is En Route or On Site that visit ends as **Cannot Complete** and a new one is planned (a revisit); otherwise creates an appointment. Refused when a technician is booked (see below) |
+| `schedule` | dispatchers, managers | `{technicians: [id] or "id, id" \| technician: id, start, end? \| duration_minutes?, notes?}` (1–20 technicians; through the gate `technicians` is text, ids separated by commas, as an action parameter has no list type) | `{entity, id, number, scheduled_start, scheduled_end, appointment_status, status}`. Moves the current appointment while it is Scheduled or Dispatched (a moved dispatched appointment must be dispatched again); while a technician is En Route or On Site that visit ends as **Cannot Complete** and a new one is planned (a revisit); otherwise creates an appointment. Refused when a technician is booked (see below) |
 | `dispatch` | dispatchers, managers | — | `{status, appointment, customer_emailed}`: Scheduled → Dispatched; the technicians get an in-app notification; the customer an email with the window and tracking link (Mail app, `notify_customer`) |
 | `start_travel` | the crew, dispatchers | `{at?}` | Dispatched → En Route; the customer is emailed that the technician is on the way (not for an `at` more than five minutes ago) |
 | `arrive` | the crew, dispatchers | `{at?}` | Dispatched or En Route → On Site; the first arrival meets or misses the response target |
 | `complete` | submit permission (the crew, dispatchers, managers) | `{at?}` | `{status, stock_entry, sales_invoice, first_time_fix}`. Same as `POST .../submit`, but for `at`. Requires On Site; with the settings, every required checklist task done (row errors) and the signature image plus signer; stock parts need a warehouse, serial numbers matching the quantity, batch numbers for batch items and enough stock (row errors: `not enough stock in Van A: 2 available, 3 needed`; skipped when the company allows negative stock). Then the parts leave stock on a submitted Material Issue (offset to cost of goods sold, valued by the stock engine; `cost` written back), the on-site visit becomes Completed (other open visits Cancelled), the equipment's `last_service_date` is set and — with `auto_invoice` — the invoice drafted. The work order is frozen |
 | `cancel_work_order` | dispatchers, managers | `{reason?}` | `{status: "Cancelled"}`; open appointments are cancelled (their time freed), dispatched technicians are told, the SLA clock stops |
-| `create_invoice` | read access + Sales Invoice create | — | `{entity, id, number}` of a **draft** Sales Invoice; the work order becomes Invoiced. See *Invoicing* |
+| `create_invoice` | write access to the work order + Sales Invoice create | — | `{entity, id, number}` of a **draft** Sales Invoice; the work order becomes Invoiced. See *Invoicing* |
+
+Every action is an operation with a contract (`field_service.service_work_order.schedule` and so on, in the
+capability catalog, `GET /api/capabilities`): its effect, what it returns and what done means. `suggest_technicians`
+is a query (it changes nothing and runs read-only); `dispatch`, `start_travel`, `reject` and `tracking_link` queue a
+mail to the customer when the Mail app is installed, so they are outside effects whose delivery a person checks;
+the others change only the workspace. `suggest_technicians` and `schedule` stay off the record page (they need a
+time) but are in the catalog, so an agent can plan a job.
 
 `at` is when a step held on a phone without a connection was taken; the job page sends it with the
 step when the connection is back. Setting off, arrival and completion are stamped then, and the
@@ -253,7 +260,7 @@ webhooks. Idempotent and safe to run concurrently.
 
 ## Reports
 
-All carry the caller's record scopes; costs show only to roles with the `costing` group.
+All carry the caller's record scopes; costs show only to roles with the `costing` group, and invoiced work only to those who read every sales invoice (the columns are left out otherwise). A grouping or filter on a field the caller cannot read is refused (Priority, Work Type, Territory and company are `planning` fields); without a choice a report falls back to the first grouping the caller reads.
 
 | Report | Params | Rows |
 |---|---|---|
