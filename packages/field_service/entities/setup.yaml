@@ -127,6 +127,9 @@
   numbering: {template: "EQ-{seq:6}"}
   search_fields: [serial_no, equipment_name]
   description: "The installed base: what each customer has, where it is and how long its warranty runs."
+  # The public request form links a unit by the customer its email address names (src/site.rs), so the customer
+  # link decides whose units a request reaches: a merge that moves it is an administrator's (docs/guides/05).
+  reach_links: [customer]
   fields:
     - {name: customer, type: link, to: Customer, required: true, in_filter: true}
     - {name: customer_name, type: data, fetch_from: customer.customer_name, read_only: true, in_list: true}

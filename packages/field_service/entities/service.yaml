@@ -6,6 +6,9 @@
   numbering: {template: "FSR-{YYYY}-{seq:5}", date_field: requested_at}
   search_fields: [contact_email, contact_name, customer_name]
   description: "A request for service from a customer (public endpoint), the helpdesk or staff; it becomes a work order."
+  # Requests are filed for the customer an email address names (src/site.rs, src/request.rs): the customer link
+  # decides whose requests they are, so a merge that moves it is an administrator's (docs/guides/05).
+  reach_links: [customer]
   fields:
     - {name: subject, type: data, required: true, max_length: 300, in_list: true}
     - {name: description, type: text, max_length: 20000}

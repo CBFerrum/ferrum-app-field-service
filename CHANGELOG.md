@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2
+
+Needs a platform with `reach_links` (Ferrum main after #314). No database or interface change.
+
+**The links that decide whose records a customer reaches are declared** (Ferrum's K0-2, docs/guides/05). The public request form names a customer by the email address given and links only that customer's unit (`src/site.rs`), and a request is that customer's; so `CustomerEquipment.customer` and `ServiceRequest.customer` are in their entities' `reach_links`, and a merge that moves them is an administrator's (`scripts/reach_links.py` lists none left). Test: `a_customer_on_the_public_side_reaches_only_their_own_equipment` (`tests/access_it.rs`).
+
 ## 0.6.1
 
 Needs the same platform as 0.6.0. No database or interface change.

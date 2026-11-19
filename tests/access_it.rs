@@ -46,3 +46,54 @@ fn a_reader_cannot_convert_a_request_or_invoice_a_work_order() {
         assert_eq!(shop.get("ServiceWorkOrder", wo).await["status"], json!("Invoiced"));
     });
 }
+
+#[test]
+fn a_customer_on_the_public_side_reaches_only_their_own_equipment() {
+    run(async {
+        let shop = Shop::open("k02").await;
+        // A merge that moves these links is an administrator's: Field Service's code reads both by their customer.
+        for entity in ["CustomerEquipment", "ServiceRequest"] {
+            let links = &shop.admin.schema.entity(entity).unwrap().def.reach_links;
+            assert!(links.iter().any(|l| l == "customer"), "{entity} declares its customer link: {links:?}");
+        }
+        let other = uid(&shop
+            .insert(
+                &shop.admin,
+                "Item",
+                json!({"item_code": "PUMP", "item_name": "pump", "is_stock_item": false,
+            "item_group": shop.get("Item", shop.boiler).await["item_group"], "stock_uom": shop.get("Item", shop.boiler).await["stock_uom"]}),
+            )
+            .await);
+        let acme_unit = uid(&shop
+            .insert(&shop.dispatcher, "CustomerEquipment", json!({"customer": shop.acme.to_string(), "item": shop.boiler.to_string(), "serial_no": "X-1"}))
+            .await);
+        let beta_unit = uid(&shop
+            .insert(&shop.dispatcher, "CustomerEquipment", json!({"customer": shop.beta.to_string(), "item": other.to_string(), "serial_no": "X-1"}))
+            .await);
+        shop.update(&shop.manager, "FieldServiceSettings", shop.settings, json!({"public_requests": true})).await;
+        let file = |email: String| {
+            let shop = shop.clone();
+            async move {
+                let req = ferrum_kernel::SiteRequest {
+                    tenant: shop.ws.tenant,
+                    user: None,
+                    method: "POST".into(),
+                    path: "/requests".into(),
+                    query: Default::default(),
+                    headers: Default::default(),
+                    body: json!({"subject": "Noise", "contact_name": "Pat", "contact_email": email, "serial_no": "X-1"}).to_string().into_bytes(),
+                    client_ip: "203.0.113.9".into(),
+                };
+                let r = shop.k.hooks.site("field_service").unwrap().clone().handle(&shop.k, req).await.expect("filed");
+                let number = serde_json::from_slice::<Value>(&r.body).unwrap()["reference"].as_str().unwrap().to_string();
+                shop.list(&shop.admin, "ServiceRequest", json!({"number": number})).await.remove(0)
+            }
+        };
+        let from_beta = file(format!("desk@beta-{}.test", shop.slug)).await;
+        assert_eq!((from_beta["customer"].clone(), from_beta["equipment"].clone()), (json!(shop.beta.to_string()), json!(beta_unit.to_string())));
+        let from_acme = file(format!("ops@acme-{}.test", shop.slug)).await;
+        assert_eq!((from_acme["customer"].clone(), from_acme["equipment"].clone()), (json!(shop.acme.to_string()), json!(acme_unit.to_string())));
+        let stranger = file("someone@else.test".into()).await;
+        assert_eq!((stranger["customer"].clone(), stranger["equipment"].clone()), (Value::Null, Value::Null), "an unknown address reaches no one's unit");
+    });
+}
