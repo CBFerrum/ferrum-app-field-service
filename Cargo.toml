@@ -29,6 +29,7 @@ hex = "0.4"
 
 [dev-dependencies]
 ferrum-apps = { git = "https://github.com/CBFerrum/Ferrum", branch = "main" }
+ferrum-testkit = { git = "https://github.com/CBFerrum/Ferrum", branch = "main" }
 tokio = { version = "1.45", features = ["rt-multi-thread", "macros", "sync", "time", "signal"] }
 
 [lints.clippy]

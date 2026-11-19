@@ -37,7 +37,7 @@
   actions:
     - name: make_work_order
       label: Create Work Order
-      permission: read
+      permission: write
       condition: "doc.status == 'Open'"
       params:
         - {name: company, type: link, to: Company, label: Company, description: The default company when empty}
@@ -226,7 +226,7 @@
       confirm: "Cancel this work order and its open appointments?"
       params:
         - {name: reason, type: text, label: Reason}
-    - {name: create_invoice, label: Create Sales Invoice, docstatus: [1], permission: read, condition: "doc.status == 'Completed'"}
+    - {name: create_invoice, label: Create Sales Invoice, docstatus: [1], permission: write, condition: "doc.status == 'Completed'"}
   list: {columns: [number, customer_name, work_type, priority, status, scheduled_start, sla_status], sort: reported_at desc}
 
 - name: ServiceAppointmentTechnician

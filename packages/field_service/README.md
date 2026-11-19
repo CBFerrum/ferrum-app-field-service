@@ -73,7 +73,7 @@ reference. Converted and rejected requests are final.
 
 | Action | Who | Params | Returns |
 |---|---|---|---|
-| `make_work_order` | read access + Service Work Order create | `{company?}` | `{entity, id, number}` of the work order (customer, contact, equipment, site, type, priority, description, preferred time and `reported_at = requested_at` carried over); the request becomes Converted. Refused without a customer, and once converted |
+| `make_work_order` | write access to the request + Service Work Order create | `{company?}` | `{entity, id, number}` of the work order (customer, contact, equipment, site, type, priority, description, preferred time and `reported_at = requested_at` carried over); the request becomes Converted. Refused without a customer, and once converted |
 | `reject` | dispatchers, managers | `{reason}` (required, ≤ 2000) | `{status: "Rejected", customer_emailed}`; whoever filed it is told |
 | `tracking_link` | read access | `{send?: true}` | `{path, url, expires_at, emailed}`: a new signed link (`url` is absolute when the Mail app's public URL is set); `send` emails it to the contact (needs the Mail app) |
 
@@ -130,7 +130,7 @@ technician's when the line was entered.
 | `arrive` | the crew, dispatchers | `{at?}` | Dispatched or En Route → On Site; the first arrival meets or misses the response target |
 | `complete` | submit permission (the crew, dispatchers, managers) | `{at?}` | `{status, stock_entry, sales_invoice, first_time_fix}`. Same as `POST .../submit`, but for `at`. Requires On Site; with the settings, every required checklist task done (row errors) and the signature image plus signer; stock parts need a warehouse, serial numbers matching the quantity, batch numbers for batch items and enough stock (row errors: `not enough stock in Van A: 2 available, 3 needed`; skipped when the company allows negative stock). Then the parts leave stock on a submitted Material Issue (offset to cost of goods sold, valued by the stock engine; `cost` written back), the on-site visit becomes Completed (other open visits Cancelled), the equipment's `last_service_date` is set and — with `auto_invoice` — the invoice drafted. The work order is frozen |
 | `cancel_work_order` | dispatchers, managers | `{reason?}` | `{status: "Cancelled"}`; open appointments are cancelled (their time freed), dispatched technicians are told, the SLA clock stops |
-| `create_invoice` | read access + Sales Invoice create | — | `{entity, id, number}` of a **draft** Sales Invoice; the work order becomes Invoiced. See *Invoicing* |
+| `create_invoice` | write access to the work order + Sales Invoice create | — | `{entity, id, number}` of a **draft** Sales Invoice; the work order becomes Invoiced. See *Invoicing* |
 
 `at` is when a step held on a phone without a connection was taken; the job page sends it with the
 step when the connection is back. Setting off, arrival and completion are stamped then, and the

@@ -7,7 +7,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-0.6.0-a63e30?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.6.1-a63e30?style=flat-square)](CHANGELOG.md)
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Ferrum platform](https://img.shields.io/badge/runs%20on-Ferrum-2f5bea?style=flat-square)](https://github.com/CBFerrum/Ferrum)
 ![Rust](https://img.shields.io/badge/Rust-server-b7410e?style=flat-square&logo=rust)
@@ -47,7 +47,7 @@ through ERP.
 
 | | |
 |---|---|
-| **Version** | 0.6.0 (platform `>=0.4.0, <0.5`) |
+| **Version** | 0.6.1 (platform `>=0.4.0, <0.5`) |
 | **Kind** | Own interface at `/field-service/` (dispatch board, technician's day, work order pages), plus generic records screens; installable on a phone |
 | **What it adds** | 21 entities (10 main, 11 child tables), 3 roles, 6 reports, 1 menu module, 2 public endpoints |
 | **Depends on** | Ferrum core and **ERP** (installing Field Service installs ERP) |
@@ -435,6 +435,7 @@ Compared with Salesforce Field Service, ServiceTitan, Microsoft Dynamics 365 Fie
 
 ### ✅ Recently shipped
 
+- [x] **0.6.1.** Converting a request and invoicing a work order need the right to change them, not only to read them.
 - [x] **0.6.0.** Upkeep runs one workspace at a time, on whichever replica is free; needs Ferrum 0.4.0.
 - [x] **0.5.5.** Three stray backup files gone from the interface's sources; `ui/dist` rebuilt with Ferrum-Frontend c968269.
 - [x] **0.5.4.** The offline day, jobs and steps are kept in the storage the client gives; the page starts through the frontend's `mountApp`.

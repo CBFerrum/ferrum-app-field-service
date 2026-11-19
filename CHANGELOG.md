@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+Needs the same platform as 0.6.0. No database or interface change.
+
+**Pressing an action that changes a record needs the right to change it** (Ferrum's K0-6 rule, docs/guides/05). `ServiceRequest.make_work_order` and `ServiceWorkOrder.create_invoice` were declared `permission: read`, so anyone who could read a request and create work orders could convert it, and anyone who could read a work order and create sales invoices could invoice it (and mark it Invoiced). Both are `permission: write` now; dispatchers and service managers keep them. Test: `a_reader_cannot_convert_a_request_or_invoice_a_work_order` (`tests/access_it.rs`). The integration suites added from now on run on the platform's test kit (`ferrum-testkit`, a dev-dependency), each test in its own workspace.
+
 ## 0.6.0
 
 Needs Ferrum 0.4.0 (apps' upkeep runs one workspace at a time, on whichever replica is free). No database or interface change.
