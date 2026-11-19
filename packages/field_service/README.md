@@ -253,7 +253,7 @@ webhooks. Idempotent and safe to run concurrently.
 
 ## Reports
 
-All carry the caller's record scopes; costs show only to roles with the `costing` group.
+All carry the caller's record scopes; costs show only to roles with the `costing` group, and invoiced work only to those who read every sales invoice (the columns are left out otherwise). A grouping or filter on a field the caller cannot read is refused (Priority, Work Type, Territory and company are `planning` fields); without a choice a report falls back to the first grouping the caller reads.
 
 | Report | Params | Rows |
 |---|---|---|

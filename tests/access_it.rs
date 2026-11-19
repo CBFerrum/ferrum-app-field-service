@@ -97,3 +97,67 @@ fn a_customer_on_the_public_side_reaches_only_their_own_equipment() {
         assert_eq!((stranger["customer"].clone(), stranger["equipment"].clone()), (Value::Null, Value::Null), "an unknown address reaches no one's unit");
     });
 }
+
+/// Reads work orders and contracts, but not their planning fields, costs or sales invoices.
+async fn auditor(shop: &Shop) -> ferrum_kernel::Ctx {
+    shop.role(
+        "Field Auditor",
+        json!([{"entity": "ServiceWorkOrder", "read": true}, {"entity": "ServiceContract", "read": true}, {"entity": "ServiceAppointment", "read": true}]),
+    )
+    .await;
+    shop.ws.user(&format!("auditor@{}.test", shop.slug), &["Field Auditor"]).await
+}
+
+#[test]
+fn a_report_refuses_grouping_by_a_field_the_caller_cannot_read() {
+    run(async {
+        let shop = Shop::open("k07a").await;
+        let who = auditor(&shop).await;
+        shop.job(json!({"priority": "High", "territory": shop.north.to_string()})).await;
+        for group in ["Priority", "Work Type", "Territory"] {
+            for report in ["fs_work_order_summary", "fs_first_time_fix", "fs_sla_compliance"] {
+                refused(shop.report(&who, report, &[("group_by", group)]).await, "forbidden", "");
+            }
+        }
+        refused(shop.report(&who, "fs_parts_consumption", &[("company", &shop.company.to_string())]).await, "forbidden", "");
+        for group in ["Status", "Technician", "Customer"] {
+            let r = shop.report(&who, "fs_work_order_summary", &[("group_by", group)]).await.unwrap_or_else(|e| panic!("{group}: {e:?}"));
+            assert_eq!(r["meta"]["group_by"], json!(group));
+        }
+        let r = shop.report(&shop.dispatcher, "fs_work_order_summary", &[("group_by", "Priority")]).await.expect("the dispatcher reads priorities");
+        assert_eq!(r["rows"][0]["group"], json!("High"));
+    });
+}
+
+#[test]
+fn a_report_s_default_falls_back_to_a_readable_grouping() {
+    run(async {
+        let shop = Shop::open("k07b").await;
+        let who = auditor(&shop).await;
+        shop.job(json!({"priority": "High"})).await;
+        let r = shop.report(&who, "fs_sla_compliance", &[]).await.expect("by a grouping the auditor reads");
+        assert_eq!(r["meta"]["group_by"], json!("Status"), "Priority is the default, and planning is not the auditor's");
+        assert!(!r.to_string().contains("\"High\""), "{r}");
+        assert_eq!(shop.report(&shop.dispatcher, "fs_sla_compliance", &[]).await.unwrap()["meta"]["group_by"], json!("Priority"));
+    });
+}
+
+#[test]
+fn a_report_leaves_out_columns_the_caller_cannot_read() {
+    run(async {
+        let shop = Shop::open("k07c").await;
+        let who = auditor(&shop).await;
+        let wo = shop.job(json!({})).await;
+        shop.completed(wo, 10).await;
+        shop.act(&shop.manager, "ServiceWorkOrder", wo, "create_invoice", json!({})).await;
+        let names = |r: &Value| r["columns"].as_array().unwrap().iter().map(|c| c["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
+        let revenue = shop.report(&who, "fs_contract_revenue", &[]).await.expect("contracts");
+        for hidden in ["invoiced", "revenue", "cost", "margin"] {
+            assert!(!names(&revenue).contains(&hidden.to_string()), "{hidden}: {:?}", names(&revenue));
+            assert!(revenue["totals"][hidden].is_null(), "{hidden}: {}", revenue["totals"]);
+        }
+        assert!(names(&shop.report(&shop.manager, "fs_contract_revenue", &[]).await.unwrap()).contains(&"margin".to_string()), "the manager's are all there");
+        let parts = shop.report(&who, "fs_parts_consumption", &[]).await.expect("parts");
+        assert!(!names(&parts).contains(&"cost".to_string()), "{:?}", names(&parts));
+    });
+}

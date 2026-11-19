@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+Needs a platform with `reports::readable_choice` and `readable_default` (Ferrum main after #314). No database or interface change.
+
+**Reports show only what the caller reads** (Ferrum's K0-7). Each grouping names the work order's field it reads (Priority, Work Type and Territory are `planning` fields): a grouping the caller cannot read is refused, and without a choice the report's default falls back to the first grouping they read (`fs_sla_compliance` defaults to Priority, then Status). The parts report's company filter is refused to whoever cannot read work orders' company. Columns: the parts report leaves out Cost, and the contract report leaves out Labour and Parts Cost and Margin, for those without the `costing` group; the contract report's Invoiced Work and Revenue (summed from sales invoices) only show to those who read every sales invoice. Tests: `a_report_refuses_grouping_by_a_field_the_caller_cannot_read`, `a_report_s_default_falls_back_to_a_readable_grouping`, `a_report_leaves_out_columns_the_caller_cannot_read` (`tests/access_it.rs`).
+
 ## 0.6.2
 
 Needs a platform with `reach_links` (Ferrum main after #314). No database or interface change.
