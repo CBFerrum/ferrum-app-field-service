@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.4
+
+Needs the same platform as 0.6.3. Package `field_service` 0.2.0. No database or interface change.
+
+**Every action says what it promises.** All twelve actions carry a contract (effect, what they return, what done means) and declare the parameters their handlers read: `suggest_technicians` (`start`, `end`, `duration_minutes`; a query, run read-only) and `schedule` (`start`, `end`, `duration_minutes`, `technician`, `technicians`, `notes`) are in the capability catalog, so an agent plans a job through the same operation as the dispatch board; `start_travel`, `arrive` and `complete` declare `at`. `dispatch`, `start_travel`, `reject` and `tracking_link` queue a customer mail and are outside effects. Through the gate `schedule` takes `technicians` as ids separated by commas (an action parameter has no list type); the board still sends a list. The record page may now ask "When It Was Done" before Start Travel, Arrive and Complete; Field Service's own pages are unchanged. Tests: `tests/contracts_it.rs`.
+
 ## 0.6.3
 
 Needs a platform with `reports::readable_choice` and `readable_default` (Ferrum main after #314). No database or interface change.

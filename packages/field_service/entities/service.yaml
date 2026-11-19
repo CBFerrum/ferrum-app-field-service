@@ -44,17 +44,43 @@
       condition: "doc.status == 'Open'"
       params:
         - {name: company, type: link, to: Company, label: Company, description: The default company when empty}
+      contract:
+        effect: transactional_action
+        returns:
+          type: object
+          properties:
+            entity: {type: string, const: ServiceWorkOrder}
+            id: {type: string, format: uuid, x-ferrum-link: ServiceWorkOrder}
+            number: {type: [string, "null"]}
+        completion: "A work order exists with the request's customer, site, priority and description, counting its service level from when the customer asked; the request is Converted and names it. Committed with this receipt"
     - name: reject
       label: Reject
       permission: write
       condition: "doc.status == 'Open'"
       params:
         - {name: reason, type: text, label: Reason, required: true, description: The customer is told it}
+      contract:
+        effect: external_effect
+        unknown_outcome: manual
+        returns: {type: object, properties: {status: {type: string}, customer_emailed: {type: boolean}}}
+        completion: "The request is Rejected with the reason, committed with this receipt; its maker is told, and where customers are emailed the reason is queued to the contact, its delivery not confirmed"
     - name: tracking_link
       label: Customer Tracking Link
       permission: read
       params:
         - {name: send, type: select, label: Email It to the Contact, options: ["No", "Yes"]}
+      contract:
+        effect: external_effect
+        unknown_outcome: manual
+        returns:
+          type: object
+          properties:
+            path: {type: string}
+            url: {type: [string, "null"]}
+            expires_at: {type: string}
+            emailed: {type: boolean}
+            message: {type: string}
+        completion: "A signed link to the request's tracking page that works until its expiry; nothing is stored. Asked to send it, it is queued to the contact, its delivery not confirmed"
   list: {columns: [number, subject, customer_name, priority, status], sort: requested_at desc}
 
 - name: ServiceWorkOrderSkill
@@ -215,12 +241,118 @@
   unique: [[service_contract, contract_due_date]]
   actions:
     # The work order's page and the dispatch board ask for these with a time: a record page has none.
-    - {name: suggest_technicians, label: Suggest Technicians, docstatus: [0], permission: read, hidden: true, condition: "doc.status != 'Cancelled'"}
-    - {name: schedule, label: Schedule, docstatus: [0], permission: write, hidden: true, condition: "doc.status != 'Cancelled'"}
-    - {name: dispatch, label: Dispatch, docstatus: [0], permission: write, condition: "doc.status == 'Scheduled'"}
-    - {name: start_travel, label: Start Travel, docstatus: [0], permission: write, condition: "doc.status == 'Dispatched'"}
-    - {name: arrive, label: Arrive On Site, docstatus: [0], permission: write, condition: "doc.status == 'Dispatched' || doc.status == 'En Route'"}
-    - {name: complete, label: Complete, docstatus: [0], permission: submit, condition: "doc.status == 'On Site'"}
+    - name: suggest_technicians
+      label: Suggest Technicians
+      docstatus: [0]
+      permission: read
+      read_only: true
+      hidden: true
+      condition: "doc.status != 'Cancelled'"
+      params:
+        - {name: start, type: datetime, label: Start, description: "Left empty: the current visit's, else the preferred time, else the next quarter hour"}
+        - {name: end, type: datetime, label: End, description: "Left empty: the start and the duration"}
+        - {name: duration_minutes, type: int, label: Duration (Minutes), description: "Left empty: the job's estimate"}
+      contract:
+        effect: query
+        returns:
+          type: object
+          properties:
+            work_order: {type: string, format: uuid, x-ferrum-link: ServiceWorkOrder}
+            start: {type: string}
+            end: {type: string}
+            technicians: {type: array, items: {type: object}}
+        completion: "Every active technician ranked for the slot, those who can take it first, each with a score and its reasons; nothing is changed"
+    - name: schedule
+      label: Schedule
+      docstatus: [0]
+      permission: write
+      hidden: true
+      condition: "doc.status != 'Cancelled'"
+      params:
+        - {name: start, type: datetime, label: Start, required: true}
+        - {name: end, type: datetime, label: End, description: "Left empty: the start and the duration"}
+        - {name: duration_minutes, type: int, label: Duration (Minutes), description: "Left empty: the job's estimate"}
+        - {name: technician, type: link, to: Technician, label: Technician}
+        - {name: technicians, type: data, label: Technicians, description: "Several technicians: their ids separated by commas"}
+        - {name: notes, type: text, label: Notes}
+      contract:
+        effect: transactional_action
+        returns:
+          type: object
+          properties:
+            entity: {type: string, const: ServiceAppointment}
+            id: {type: string, format: uuid, x-ferrum-link: ServiceAppointment}
+            number: {type: [string, "null"]}
+            scheduled_start: {type: string}
+            scheduled_end: {type: string}
+            appointment_status: {type: string}
+            status: {type: [string, "null"]}
+        completion: "The work order has a visit for those technicians in that time, which no other visit of theirs overlaps: its current visit moved, or a new one (a visit under way is ended as Cannot Complete first). Committed with this receipt"
+    - name: dispatch
+      label: Dispatch
+      docstatus: [0]
+      permission: write
+      condition: "doc.status == 'Scheduled'"
+      contract:
+        effect: external_effect
+        unknown_outcome: manual
+        returns:
+          type: object
+          properties:
+            status: {type: [string, "null"]}
+            appointment: {type: string, format: uuid, x-ferrum-link: ServiceAppointment}
+            customer_emailed: {type: boolean}
+        completion: "The visit is Dispatched and its technicians are told, committed with this receipt; where customers are emailed, the visit's time is queued to the contact, its delivery not confirmed"
+    - name: start_travel
+      label: Start Travel
+      docstatus: [0]
+      permission: write
+      condition: "doc.status == 'Dispatched'"
+      params:
+        - {name: at, type: datetime, label: When It Was Done, description: "For a step taken without a connection and sent later: when it was taken. Left empty, now"}
+      contract:
+        effect: external_effect
+        unknown_outcome: manual
+        returns:
+          type: object
+          properties:
+            status: {type: [string, "null"]}
+            appointment: {type: string, format: uuid, x-ferrum-link: ServiceAppointment}
+            customer_emailed: {type: boolean}
+        completion: "The visit is En Route from the moment given, committed with this receipt; where customers are emailed and it is happening now, an on-the-way notice is queued, its delivery not confirmed"
+    - name: arrive
+      label: Arrive On Site
+      docstatus: [0]
+      permission: write
+      condition: "doc.status == 'Dispatched' || doc.status == 'En Route'"
+      params:
+        - {name: at, type: datetime, label: When It Was Done, description: "For a step taken without a connection and sent later: when it was taken. Left empty, now"}
+      contract:
+        effect: transactional_action
+        returns:
+          type: object
+          properties:
+            status: {type: [string, "null"]}
+            appointment: {type: string, format: uuid, x-ferrum-link: ServiceAppointment}
+            customer_emailed: {type: boolean}
+        completion: "The visit is On Site from the moment given; the first arrival is the work order's, which meets or misses its response time. Committed with this receipt"
+    - name: complete
+      label: Complete
+      docstatus: [0]
+      permission: submit
+      condition: "doc.status == 'On Site'"
+      params:
+        - {name: at, type: datetime, label: When It Was Done, description: "For a step taken without a connection and sent later: when it was taken. Left empty, now"}
+      contract:
+        effect: transactional_action
+        returns:
+          type: object
+          properties:
+            status: {type: [string, "null"]}
+            stock_entry: {type: [string, "null"], format: uuid, x-ferrum-link: StockEntry}
+            sales_invoice: {type: [string, "null"], format: uuid, x-ferrum-link: SalesInvoice}
+            first_time_fix: {type: [boolean, "null"]}
+        completion: "The work order is submitted as Completed: its parts have left stock on a material issue, its visit is closed, its service level is judged by the moment given, and where the settings say so its draft invoice exists. Committed with this receipt; undone only by cancelling the work order"
     - name: cancel_work_order
       label: Cancel Work Order
       docstatus: [0]
@@ -229,7 +361,24 @@
       confirm: "Cancel this work order and its open appointments?"
       params:
         - {name: reason, type: text, label: Reason}
-    - {name: create_invoice, label: Create Sales Invoice, docstatus: [1], permission: write, condition: "doc.status == 'Completed'"}
+      contract:
+        effect: transactional_action
+        returns: {type: object, properties: {status: {type: string}}}
+        completion: "The work order is Cancelled with the reason, its open visits are cancelled and their technicians' time is free, and its service-level clock has stopped"
+    - name: create_invoice
+      label: Create Sales Invoice
+      docstatus: [1]
+      permission: write
+      condition: "doc.status == 'Completed'"
+      contract:
+        effect: transactional_action
+        returns:
+          type: object
+          properties:
+            entity: {type: string, const: SalesInvoice}
+            id: {type: string, format: uuid, x-ferrum-link: SalesInvoice}
+            number: {type: [string, "null"]}
+        completion: "One draft sales invoice exists for the work order's parts, labour and expenses, with what is covered shown free, and the work order is Invoiced and names it. A work order is invoiced once"
   list: {columns: [number, customer_name, work_type, priority, status, scheduled_start, sla_status], sort: reported_at desc}
 
 - name: ServiceAppointmentTechnician
@@ -265,7 +414,15 @@
   rules:
     - {name: ends_after_start, check: "doc.scheduled_start == null || doc.scheduled_end == null || doc.scheduled_end > doc.scheduled_start", message: "The appointment must end after it starts"}
   actions:
-    - {name: cancel_appointment, label: Cancel Appointment, permission: write, condition: "doc.status == 'Scheduled' || doc.status == 'Dispatched' || doc.status == 'En Route'", confirm: "Cancel this appointment and free the technicians' time?"}
+    - name: cancel_appointment
+      label: Cancel Appointment
+      permission: write
+      condition: "doc.status == 'Scheduled' || doc.status == 'Dispatched' || doc.status == 'En Route'"
+      confirm: "Cancel this appointment and free the technicians' time?"
+      contract:
+        effect: transactional_action
+        returns: {type: object, properties: {status: {type: string}}}
+        completion: "The visit is Cancelled and its technicians' time is free; the work order's status follows its other visits"
   list: {columns: [number, customer_name, scheduled_start, scheduled_end, status], sort: scheduled_start desc}
 
 - name: ServiceContract

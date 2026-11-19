@@ -1,5 +1,5 @@
 package: field_service
-version: 0.1.0
+version: 0.2.0
 label: Field Service
 description: "Field service: service requests, work orders, technician scheduling and dispatch, parts and time, checklists, signatures and invoicing"
 depends: [core, selling, inventory, accounting]

@@ -7,7 +7,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-0.6.3-a63e30?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.6.4-a63e30?style=flat-square)](CHANGELOG.md)
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Ferrum platform](https://img.shields.io/badge/runs%20on-Ferrum-2f5bea?style=flat-square)](https://github.com/CBFerrum/Ferrum)
 ![Rust](https://img.shields.io/badge/Rust-server-b7410e?style=flat-square&logo=rust)
@@ -47,7 +47,7 @@ through ERP.
 
 | | |
 |---|---|
-| **Version** | 0.6.3 (platform `>=0.4.0, <0.5`) |
+| **Version** | 0.6.4 (platform `>=0.4.0, <0.5`) |
 | **Kind** | Own interface at `/field-service/` (dispatch board, technician's day, work order pages), plus generic records screens; installable on a phone |
 | **What it adds** | 21 entities (10 main, 11 child tables), 3 roles, 6 reports, 1 menu module, 2 public endpoints |
 | **Depends on** | Ferrum core and **ERP** (installing Field Service installs ERP) |
@@ -435,6 +435,7 @@ Compared with Salesforce Field Service, ServiceTitan, Microsoft Dynamics 365 Fie
 
 ### ✅ Recently shipped
 
+- [x] **0.6.4.** Every action says what it promises; planning a job (`schedule`, `suggest_technicians`) is in the catalog for agents.
 - [x] **0.6.3.** Reports group and filter only by fields the caller reads, fall back to a grouping they read, and leave out invoiced and cost columns they may not see.
 - [x] **0.6.2.** The customer links that decide whose units and requests a customer reaches are declared, so moving them in a merge is an administrator's.
 - [x] **0.6.1.** Converting a request and invoicing a work order need the right to change them, not only to read them.
